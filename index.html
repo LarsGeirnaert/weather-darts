@@ -11,7 +11,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #e0f2f7; /* Lichtblauwe, koele achtergrond */
+            background-color: #e0f2f7f1; /* Lichtblauwe, koele achtergrond */
             background-image: radial-gradient(#d1edf4 1px, transparent 1px), radial-gradient(#d1edf4 1px, transparent 1px);
             background-size: 40px 40px;
             background-position: 0 0, 20px 20px;
@@ -50,35 +50,33 @@
         .score-panel {
             background: linear-gradient(135deg, #3b82f6, #1d4ed8);
         }
-        /* Nieuwe stijl voor de kaart */
-        #world-map-canvas {
-            border: 4px solid #1d4ed8;
-            border-radius: 10px;
-            cursor: crosshair;
-            background-color: #a0c4ff; /* Lichte oceaan kleur */
-            width: 100%;
-            display: block;
-            margin: 0 auto;
+        /* Stijl voor de suggestielijst */
+        .suggestion-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #e5e7eb;
+            transition: background-color 0.15s;
         }
-        .map-wrapper {
-            position: relative;
-            /* 2:1 aspect ratio voor een wereldkaart */
-            padding-bottom: 50%; 
-            height: 0;
-            overflow: hidden;
-            border-radius: 10px;
+        .suggestion-item:hover {
+            background-color: #f3f4f6;
         }
-        .map-wrapper canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+        .suggestion-item:last-child {
+            border-bottom: none;
         }
         /* Stijl voor de geschiedenis (scrollable) */
         #history-log-container {
             max-height: 250px;
             overflow-y: auto;
+        }
+        /* Visuele feedback na de worp */
+        .temp-icon {
+            font-size: 3rem;
+            line-height: 1;
+            margin-right: 15px;
+        }
+        .result-content {
+            display: flex;
+            align-items: center;
         }
     </style>
 </head>
@@ -128,7 +126,7 @@
                         <span class="mr-2 text-xl">🎯</span> DOEL: Eindig na 5 beurten zo dicht mogelijk bij 0°C.
                     </p>
                     <p id="deduction-guess-warning" class="text-sm mt-1 font-bold text-red-600">
-                        LET OP: Je mag elke locatie maar ÉÉN KEER gokken!
+                        LET OP: Je mag elke stad maar ÉÉN KEER gokken!
                     </p>
                 </div>
 
@@ -144,12 +142,15 @@
                     </div>
                 </div>
 
-                <!-- Map Input -->
-                <div class="mt-6 space-y-4">
-                    <p id="deduction-location-label" class="text-center text-sm font-semibold text-gray-700">Klik op de kaart om een locatie te kiezen.</p>
-                    <div class="map-wrapper">
-                        <canvas id="deduction-map-canvas"></canvas>
+                <!-- Input Form met Suggesties -->
+                <div class="mt-6 space-y-4 relative">
+                    <input type="text" id="deduction-city-input" placeholder="Voer een stad in (bv. Parijs, New York)" class="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 shadow-inner">
+                    
+                    <!-- Suggestie Container -->
+                    <div id="deduction-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden">
+                        <!-- Suggesties worden hier dynamisch ingevoegd -->
                     </div>
+
                     <button id="deduction-submit-button" class="w-full button-primary text-white p-4 rounded-xl font-extrabold text-xl disabled:bg-gray-400 disabled:shadow-none disabled:transform-none" disabled>
                         Trek Temperatuur Af
                     </button>
@@ -167,7 +168,7 @@
                         <ul id="deduction-history-log" class="space-y-3">
                             <!-- Geschiedenis items komen hier -->
                         </ul>
-                        <p id="deduction-history-placeholder" class="text-sm text-gray-500">Nog geen locaties gekozen.</p>
+                        <p id="deduction-history-placeholder" class="text-sm text-gray-500">Nog geen steden gekozen.</p>
                     </div>
                 </div>
 
@@ -212,12 +213,15 @@
                     </div>
                 </div>
 
-                <!-- Map Input -->
-                <div class="mt-6 space-y-4">
-                    <p id="guessing-location-label" class="text-center text-sm font-semibold text-gray-700">Klik op de kaart om een locatie te kiezen.</p>
-                    <div class="map-wrapper">
-                        <canvas id="guessing-map-canvas"></canvas>
+                <!-- Input Form met Suggesties -->
+                <div class="mt-6 space-y-4 relative">
+                    <input type="text" id="guessing-city-input" placeholder="Voer een stad in (bv. Parijs, New York)" class="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 shadow-inner">
+                    
+                    <!-- Suggestie Container -->
+                    <div id="guessing-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden">
+                        <!-- Suggesties worden hier dynamisch ingevoegd -->
                     </div>
+
                     <button id="guessing-submit-button" class="w-full button-primary text-white p-4 rounded-xl font-extrabold text-xl disabled:bg-gray-400 disabled:shadow-none disabled:transform-none" disabled>
                         Controleer Temperatuur
                     </button>
@@ -257,28 +261,74 @@
         // --- Configuratie & State ---
         // Jouw API-sleutel. Let op: deze is openbaar zichtbaar in de browser.
         const API_KEY = "b10dc274a5e56f6f6fc4fe68a7987217"; 
-        const GEO_API_URL = "https://api.openweathermap.org/geo/1.0/reverse"; // Gebruiken voor LAT/LON -> Naam
+        const GEO_API_URL = "https://api.openweathermap.org/geo/1.0/direct"; // Gebruiken voor stadsnaam -> LAT/LON
         const FORECAST_API_URL = "https://api.openweathermap.org/data/2.5/forecast"; 
 
         const DEDUCTION_MAX_TURNS = 5;
+        const DEDUCTION_MIN_TARGET = 25; // AANGEPAST: nieuwe ondergrens (van 70)
+        const DEDUCTION_MAX_TARGET = 125; // AANGEPAAST: nieuwe bovengrens (van 120)
+        
         const GUESSING_MAX_TURNS = 7; 
         const GUESSING_MIN_TARGET = 5; 
         const GUESSING_MAX_TARGET = 30;
+        const DEBOUNCE_DELAY = 300; 
+        
+        const COUNTRY_MAP = {
+            "BE": "België", "NL": "Nederland", "DE": "Duitsland", "FR": "Frankrijk",
+            "US": "Verenigde Staten", "GB": "Verenigd Koninkrijk", "CA": "Canada", "AU": "Australië",
+            "JP": "Japan", "CN": "China", "IN": "India", "BR": "Brazilië",
+            "RU": "Rusland", "NO": "Noorwegen", "SE": "Zweden", "DK": "Denemarken",
+            "ES": "Spanje", "IT": "Italië", "PT": "Portugal", "GR": "Griekenland",
+            // Uitbreiding voor veelvoorkomende EU landen en algemene landen:
+            "AT": "Oostenrijk", "CH": "Zwitserland", "IE": "Ierland", "PL": "Polen", 
+            "HU": "Hongarije", "CZ": "Tsjechië", "SK": "Slowakije", "HR": "Kroatië", 
+            "TR": "Turkije", "SA": "Saoedi-Arabië", "AE": "Verenigde Arabische Emiraten",
+            "SG": "Singapore", "MY": "Maleisië", "ID": "Indonesië", "TH": "Thailand",
+            "PH": "Filipijnen", "KR": "Zuid-Korea", "MX": "Mexico", "AR": "Argentinië",
+            "CL": "Chili", "ZA": "Zuid-Afrika", "EG": "Egypte", "MA": "Marokko",
+            "NG": "Nigeria", "FI": "Finland", "IS": "IJsland", "NZ": "Nieuw-Zeeland",
+            "MT": "Malta", "MU": "Mauritius", "HK": "Hongkong", "KW": "Koeweit",
+            "QA": "Qatar", "CY": "Cyprus", "PE": "Peru", "CO": "Colombia", "VE": "Venezuela",
+            "EC": "Ecuador", "BO": "Bolivië", "PY": "Paraguay", "UY": "Uruguay",
+            "CD": "Democratische Republiek Congo", // NIEUW: Congo (Democratische Republiek)
+            "CG": "Congo",
+            "CM": "Kameroen",
+            "KE": "Kenia",
+            "TZ": "Tanzania",
+            "UG": "Oeganda", // NIEUW: Oeganda
+            "PG": "Papoea-Nieuw-Guinea", // NIEUW: Papoea-Nieuw-Guinea
+            "PK": "Pakistan",
+            "BD": "Bangladesh",
+            "NP": "Nepal",
+            "LK": "Sri Lanka",
+            "MM": "Myanmar",
+            "LA": "Laos",
+            "KH": "Cambodja",
+            "VN": "Vietnam",
+            "DZ": "Algerije",
+            "SD": "Soedan",
+            "ET": "Ethiopië",
+            "SS": "Zuid-Soedan",
+            "CF": "Centraal-Afrikaanse Republiek",
+            "GH": "Ghana", // NIEUW: Ghana
+            "GN": "Guinee" // NIEUW: Guinee
+        };
+
 
         // --- DEDUCTION GAME STATE ---
         let deductionTargetTemp = 0;
         let deductionTurnsLeft = DEDUCTION_MAX_TURNS;
         let deductionTurnHistory = []; 
-        let deductionSelectedLocation = null; // NIEUW: {lat, lon, name, country}
+        let deductionSelectedCityData = null; // NIEUW: {lat, lon, name, country}
 
         // --- GUESSING GAME STATE ---
         let guessingSecretNumber = 0; 
         let guessingTurnsLeft = GUESSING_MAX_TURNS;
         let guessingTurnHistory = []; 
-        let guessingSelectedLocation = null;
+        let guessingSelectedCityData = null;
         
         let gameActive = false;
-        let currentView = 'menu';
+        let debounceTimer;
 
         // --- DOM Elementen ---
         const mainMenu = document.getElementById('main-menu');
@@ -297,8 +347,8 @@
         const deductionTurnResult = document.getElementById('deduction-turn-result');
         const deductionHistoryLog = document.getElementById('deduction-history-log');
         const deductionHistoryPlaceholder = document.getElementById('deduction-history-placeholder');
-        const deductionMapCanvas = document.getElementById('deduction-map-canvas');
-        const deductionLocationLabel = document.getElementById('deduction-location-label');
+        const deductionCityInput = document.getElementById('deduction-city-input');
+        const deductionSuggestions = document.getElementById('deduction-suggestions');
 
         // --- GUESSING DOM ---
         const guessingGame = document.getElementById('guessing-game');
@@ -310,8 +360,8 @@
         const guessingTurnResult = document.getElementById('guessing-turn-result');
         const guessingHistoryLog = document.getElementById('guessing-history-log');
         const guessingHistoryPlaceholder = document.getElementById('guessing-history-placeholder');
-        const guessingMapCanvas = document.getElementById('guessing-map-canvas');
-        const guessingLocationLabel = document.getElementById('guessing-location-label');
+        const guessingCityInput = document.getElementById('guessing-city-input');
+        const guessingSuggestions = document.getElementById('guessing-suggestions');
 
 
         // --- View Management ---
@@ -321,8 +371,6 @@
             deductionGame.classList.add('hidden');
             guessingGame.classList.add('hidden');
             
-            currentView = viewName;
-
             if (viewName === 'menu') {
                 mainMenu.classList.remove('hidden');
                 checkApiStatus(); 
@@ -334,50 +382,14 @@
         // --- API & Core Functies ---
 
         /**
-         * Gebruikt Reverse Geocoding om een naam te krijgen voor de gekozen LAT/LON.
-         * Dit is optioneel, maar maakt de geschiedenis leesbaarder.
-         * @param {number} lat
-         * @param {number} lon
-         * @returns {Promise<object>} {name, country}
-         */
-        async function reverseGeocode(lat, lon) {
-            const geoParams = new URLSearchParams({
-                lat: lat,
-                lon: lon,
-                limit: 1,
-                appid: API_KEY,
-            }).toString();
-
-            try {
-                const response = await fetch(`${GEO_API_URL}?${geoParams}`);
-                const data = await response.json();
-                
-                if (data.length > 0 && data[0].name) {
-                    const name = data[0].name;
-                    const country = data[0].country || 'ONBEKEND';
-                    
-                    // Gebruik de officiële naam, of de coördinaten als fallback
-                    const locationName = name.length > 18 ? `${lat.toFixed(2)}, ${lon.toFixed(2)}` : name;
-                    
-                    return { name: locationName, country: country };
-                }
-            } catch (error) {
-                console.warn("Reverse Geocoding mislukt, gebruikt coördinaten als naam.");
-            }
-            // Fallback als de API faalt of geen stad vindt (bv. in de oceaan)
-            return { name: `Locatie (${lat.toFixed(2)}, ${lon.toFixed(2)})`, country: 'OCEAN' };
-        }
-
-
-        /**
          * Haalt de GEMIDDELDE temperatuur op voor de geselecteerde coördinaten.
-         * @param {object} locationData - Bevat lat, lon.
+         * @param {object} cityData - Bevat lat, lon.
          * @param {HTMLElement} resultElement - Element om fouten in te tonen.
          * @returns {Promise<number|null>}
          */
-        async function fetchTemperature(locationData, resultElement) {
+        async function fetchTemperature(cityData, resultElement) {
             const forecastParams = new URLSearchParams({
-                lat: locationData.lat, lon: locationData.lon, appid: API_KEY, units: 'metric'
+                lat: cityData.lat, lon: cityData.lon, appid: API_KEY, units: 'metric'
             }).toString();
 
             try {
@@ -389,7 +401,7 @@
                     return null;
                 }
                 
-                // --- BEREKEN HET GEMIDDELDE VAN DE DAG ---
+                // --- BEREKEN HET GEMIDDELDE VAN DE DAG (hele getallen) ---
                 let totalTemp = 0;
                 let count = 0;
                 let firstAvailableDate = null;
@@ -409,6 +421,14 @@
                 }
 
                 if (count === 0) {
+                    // Terugval: Als er geen metingen zijn voor de eerste dag, gebruik dan de eerste meting die we kunnen vinden.
+                    if (forecastData.list && forecastData.list.length > 0) {
+                        const singleTemp = forecastData.list[0].main.temp;
+                        const roundedTemp = Math.round(singleTemp); 
+                        resultElement.innerHTML += `<br><span class="text-orange-500 font-medium">⚠️ Gebruikt enkele temperatuurmeting: ${roundedTemp}°C.</span>`;
+                        return roundedTemp;
+                    }
+                    
                     resultElement.innerHTML = `<span class="text-red-500 font-medium">❌ Fout: Kon geen temperatuurmetingen vinden voor de dichtstbijzijnde dag.</span>`;
                     return null;
                 }
@@ -423,101 +443,167 @@
                 return null;
             }
         }
+        
+        // --- Autocomplete Functies (Aangepast voor beide games) ---
 
-        // --- Map Functies ---
-
-        function drawMap(canvas) {
-            const ctx = canvas.getContext('2d');
-            const w = canvas.width;
-            const h = canvas.height;
-
-            // Zorg ervoor dat de kaart de juiste grootte heeft voor responsiviteit
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-
-            // Teken een zeer simpele wereldkaart (om een idee van locatie te geven)
-            ctx.fillStyle = '#a0c4ff'; // Oceaan
-            ctx.fillRect(0, 0, w, h);
-
-            ctx.fillStyle = '#4caf50'; // Land (vereenvoudigd)
-            // Simpele landmassa's
-            ctx.fillRect(w * 0.1, h * 0.2, w * 0.3, h * 0.6); // Amerika's
-            ctx.fillRect(w * 0.5, h * 0.2, w * 0.4, h * 0.5); // Eurazië
-            ctx.fillRect(w * 0.6, h * 0.7, w * 0.15, h * 0.15); // Australië
-
-            // Teken evenaar en Greenwich meridiaan (hulplijnen)
-            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(0, h / 2); // Evenaar
-            ctx.lineTo(w, h / 2);
-            ctx.moveTo(w / 2, 0); // Meridiaan
-            ctx.lineTo(w / 2, h);
-            ctx.stroke();
-        }
-
-        function getLatLonFromClick(event, canvas) {
-            const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-
-            // Conversie van pixelcoördinaten naar LAT/LON
-            const lon = (x / canvas.width) * 360 - 180; // Breedte: -180 tot 180
-            const lat = 90 - (y / canvas.height) * 180; // Lengte: 90 (boven) tot -90 (onder)
-
-            return { lat: lat, lon: lon };
-        }
-
-        function handleMapClick(event, gameType) {
-            let canvas, submitBtn, locationLabel;
+        /**
+         * Roept de API aan om suggesties voor stadsnamen op te halen.
+         * @param {string} query
+         * @param {function} callback - Functie om suggesties te renderen.
+         */
+        async function fetchCitySuggestions(query, callback) {
             
-            if (gameType === 'deduction') {
-                canvas = deductionMapCanvas;
-                submitBtn = deductionSubmitButton;
-                locationLabel = deductionLocationLabel;
-            } else {
-                canvas = guessingMapCanvas;
-                submitBtn = guessingSubmitButton;
-                locationLabel = guessingLocationLabel;
+            const geoParams = new URLSearchParams({
+                q: query,
+                limit: 2, 
+                appid: API_KEY,
+            }).toString();
+
+            try {
+                const response = await fetch(`${GEO_API_URL}?${geoParams}`);
+                const data = await response.json();
+                callback(data);
+            } catch (error) {
+                console.error("Fout bij ophalen suggesties:", error);
+                callback([]);
+            }
+        }
+
+        /**
+         * Render de suggesties in de container voor de DEDUCTION game.
+         */
+        function renderDeductionSuggestions(cities) {
+            renderSuggestions(cities, deductionSuggestions, deductionSubmitButton, (city) => {
+                deductionSelectedCityData = city;
+            });
+        }
+        
+        /**
+         * Render de suggesties in de container voor de GUESSING game.
+         */
+        function renderGuessingSuggestions(cities) {
+            renderSuggestions(cities, guessingSuggestions, guessingSubmitButton, (city) => {
+                guessingSelectedCityData = city;
+            });
+        }
+
+        /**
+         * Genereert de volledige landnaam.
+         */
+        function getCountryName(code) {
+            return COUNTRY_MAP[code] || code;
+        }
+
+        /**
+         * Generieke functie om suggesties te renderen en state te updaten.
+         */
+        function renderSuggestions(cities, container, submitButton, setCityData) {
+            container.innerHTML = '';
+            const seenKeys = new Set(); 
+            submitButton.disabled = true; 
+
+            if (cities.length === 0) {
+                container.classList.add('hidden');
+                submitButton.disabled = false; // Laat knop toe als er geen suggesties zijn (onveilige gok)
+                return;
             }
 
-            const { lat, lon } = getLatLonFromClick(event, canvas);
+            cities.forEach(city => {
+                const cityKey = `${city.name.toLowerCase()}-${city.country}`; 
+                
+                if (seenKeys.has(cityKey)) {
+                    return; 
+                }
+                seenKeys.add(cityKey);
 
-            // Teken de kaart opnieuw en markeer de gekozen plek
-            drawMap(canvas);
-            const ctx = canvas.getContext('2d');
+                const suggestionDiv = document.createElement('div');
+                
+                // NIEUWE WEERGAVE: Stad, Landnaam
+                // Haal de volledige landnaam op
+                const countryName = getCountryName(city.country);
+                let displayCityName = `${city.name}, ${countryName}`;
+
+                suggestionDiv.textContent = displayCityName;
+                suggestionDiv.className = 'suggestion-item';
+
+                suggestionDiv.addEventListener('click', () => {
+                    const inputElement = container.previousElementSibling; // Input element is de vorige sibling
+                    inputElement.value = displayCityName; // Vul met de volledige naam (voor de UI)
+                    container.classList.add('hidden');
+                    
+                    setCityData({
+                        name: city.name, 
+                        country: countryName, // Gebruik de volledige naam in de state
+                        lat: city.lat, 
+                        lon: city.lon
+                    });
+
+                    submitButton.disabled = false; 
+                    inputElement.focus(); 
+                });
+
+                container.appendChild(suggestionDiv);
+            });
+
+            container.classList.remove('hidden');
+        }
+
+        /**
+         * Debounce wrapper voor de suggesties.
+         */
+        function handleCityInput(event, gameType) {
+            clearTimeout(debounceTimer);
             
-            // Teken de 'dartpijl' (rode stip)
-            ctx.fillStyle = 'red';
-            ctx.beginPath();
-            ctx.arc(event.offsetX, event.offsetY, 5, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Sla de geselecteerde locatie op
-            const locationData = { lat, lon };
-
+            let cityInput, suggestionsContainer, submitButton, renderCallback, setCityData;
+            
             if (gameType === 'deduction') {
-                deductionSelectedLocation = locationData;
+                cityInput = deductionCityInput;
+                suggestionsContainer = deductionSuggestions;
+                submitButton = deductionSubmitButton;
+                renderCallback = renderDeductionSuggestions;
+                setCityData = (city) => deductionSelectedCityData = city;
             } else {
-                guessingSelectedLocation = locationData;
+                cityInput = guessingCityInput;
+                suggestionsContainer = guessingSuggestions;
+                submitButton = guessingSubmitButton;
+                renderCallback = renderGuessingSuggestions;
+                setCityData = (city) => guessingSelectedCityData = city;
             }
 
-            // Update de UI
-            locationLabel.textContent = `Gekozen: LAT ${lat.toFixed(2)}°, LON ${lon.toFixed(2)}°`;
-            submitBtn.disabled = false;
+            const query = event.target.value.trim();
+            setCityData(null); 
+            submitButton.disabled = true; 
+            
+            if (query.length < 4) { 
+                suggestionsContainer.classList.add('hidden');
+                submitButton.disabled = false; 
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                fetchCitySuggestions(query, renderCallback);
+            }, DEBOUNCE_DELAY);
         }
+        
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#deduction-suggestions') && e.target.id !== 'deduction-city-input' &&
+                !e.target.closest('#guessing-suggestions') && e.target.id !== 'guessing-city-input') {
+                deductionSuggestions.classList.add('hidden');
+                guessingSuggestions.classList.add('hidden');
+            }
+        });
+
 
         // --- Status Management ---
 
         async function testApiConnection() {
-            // Logica ongewijzigd
             statusMessage.textContent = "🔬 API-verbinding testen met OpenWeatherMap...";
             statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-blue-100 text-blue-700";
 
             const testParams = new URLSearchParams({ q: "London", limit: 1, appid: API_KEY, }).toString();
 
             try {
-                const response = await fetch(`${GEO_API_URL.replace('/reverse', '/direct')}?${testParams}`); // Gebruik /direct voor testen
+                const response = await fetch(`${GEO_API_URL}?${testParams}`); 
                 
                 if (response.status === 200) {
                     statusMessage.textContent = "✅ API-sleutel is geldig en actief. Kies een spel!";
@@ -555,11 +641,9 @@
                 showView('game');
                 if (gameType === 'deduction') {
                     deductionGame.classList.remove('hidden');
-                    currentView = 'deduction';
                     initializeDeductionGame();
                 } else if (gameType === 'guessing') {
                     guessingGame.classList.remove('hidden');
-                    currentView = 'guessing';
                     initializeGuessingGame();
                 }
             }
@@ -595,7 +679,7 @@
                 
                 listItem.innerHTML = `
                     <span class="font-bold text-blue-700 mr-2">Worp ${DEDUCTION_MAX_TURNS - deductionTurnsLeft - index}:</span>
-                    <span>${turn.name} (${turn.country})</span>
+                    <span>${turn.name}, ${turn.country}</span>
                     <span class="font-black text-red-600">${turn.temp}°C</span>
                 `;
                 deductionHistoryLog.appendChild(listItem);
@@ -603,13 +687,14 @@
         }
 
         function initializeDeductionGame() {
-            deductionTargetTemp = Math.floor(Math.random() * 101) + 50; 
+            // Gebruik de nieuwe, krappere grenzen (25 tot 125)
+            deductionTargetTemp = Math.floor(Math.random() * (DEDUCTION_MAX_TARGET - DEDUCTION_MIN_TARGET + 1)) + DEDUCTION_MIN_TARGET; 
             deductionTurnsLeft = DEDUCTION_MAX_TURNS;
             gameActive = true;
             deductionTurnHistory = []; 
-            deductionSelectedLocation = null; 
+            deductionSelectedCityData = null; 
             
-            deductionLocationLabel.textContent = 'Klik op de kaart om een locatie te kiezen.';
+            deductionCityInput.value = '';
             deductionSubmitButton.disabled = true; 
             deductionSubmitButton.textContent = "Trek Temperatuur Af";
 
@@ -618,65 +703,62 @@
 
             deductionGameBoard.classList.remove('hidden'); 
             deductionEndScreen.classList.add('hidden');
-            
-            // Kaart initialiseren en event listener toevoegen
-            deductionMapCanvas.width = deductionMapCanvas.offsetWidth;
-            deductionMapCanvas.height = deductionMapCanvas.offsetWidth / 2;
-            drawMap(deductionMapCanvas);
-            deductionMapCanvas.onclick = (e) => handleMapClick(e, 'deduction');
         }
 
         async function handleDeductionTurn() {
-            if (!gameActive || deductionTurnsLeft === 0 || !deductionSelectedLocation) return;
+            if (!gameActive || deductionTurnsLeft === 0 || !deductionSelectedCityData) return;
             
-            const { lat, lon } = deductionSelectedLocation;
+            const cityData = deductionSelectedCityData;
             
-            // 1. Controleer op duplicaten (gebaseerd op LAT/LON afgerond)
-            const keyToCheck = `${lat.toFixed(2)},${lon.toFixed(2)}`;
-            const isDuplicate = deductionTurnHistory.some(turn => `${turn.lat.toFixed(2)},${turn.lon.toFixed(2)}` === keyToCheck);
+            // 1. Controleer op duplicaten
+            const keyToCheck = `${cityData.name.toLowerCase()}-${cityData.country.toLowerCase()}`;
+            const isDuplicate = deductionTurnHistory.some(turn => `${turn.name.toLowerCase()}-${turn.country.toLowerCase()}` === keyToCheck);
 
             if (isDuplicate) {
-                deductionTurnResult.innerHTML = `<span class="text-red-600 font-medium">❌ Fout: Deze coördinaat (${keyToCheck}) is al gegokt. Kies een nieuwe plek!</span>`;
+                deductionTurnResult.innerHTML = `<span class="text-red-600 font-medium">❌ Fout: De stad '${cityData.name}, ${cityData.country}' is al gegokt. Kies een nieuwe stad!</span>`;
                 deductionTurnResult.classList.remove('hidden');
-                deductionSelectedLocation = null; 
+                deductionSelectedCityData = null; 
+                deductionCityInput.value = '';
                 deductionSubmitButton.disabled = true;
                 return;
             }
             
             // 2. Haal temperatuur op
-            const temperature = await fetchTemperature(deductionSelectedLocation, deductionTurnResult);
+            const temperature = await fetchTemperature(cityData, deductionTurnResult);
             
             if (temperature === null) {
                 deductionSubmitButton.disabled = true; 
                 return; 
             }
             
-            // 3. Haal naam op voor geschiedenis
-            const geoInfo = await reverseGeocode(lat, lon);
-            
+            // Bepaal thematische emoji
+            const emoji = temperature > 25 ? '☀️' : temperature < 5 ? '❄️' : '☁️';
+
             // --- Succesvolle GOK ---
             const oldTarget = deductionTargetTemp;
             deductionTargetTemp -= temperature; 
             deductionTurnsLeft--; 
 
             deductionTurnHistory.push({ 
-                name: geoInfo.name, 
-                country: geoInfo.country, 
-                temp: temperature,
-                lat: lat,
-                lon: lon
+                name: cityData.name, 
+                country: cityData.country, 
+                temp: temperature
             });
             
             deductionTurnResult.innerHTML = `
-                <p class="text-sm text-gray-700 font-medium">Afgetrokken (Daggemiddelde van ${geoInfo.name}): ${temperature.toFixed(0)}°C</p>
-                <p class="text-sm text-gray-700 mt-1">Nieuw Doel: ${oldTarget.toFixed(0)}°C - ${temperature.toFixed(0)}°C = <span class="font-bold text-xl text-blue-700">${deductionTargetTemp.toFixed(0)}°C</span></p>
+                <div class="result-content">
+                    <span class="temp-icon">${emoji}</span>
+                    <div>
+                        <p class="text-sm text-gray-700 font-medium">Afgetrokken (Daggemiddelde van ${cityData.name}, ${cityData.country}): ${temperature.toFixed(0)}°C</p>
+                        <p class="text-sm text-gray-700 mt-1">Nieuw Doel: ${oldTarget.toFixed(0)}°C - ${temperature.toFixed(0)}°C = <span class="font-bold text-xl text-blue-700">${deductionTargetTemp.toFixed(0)}°C</span></p>
+                    </div>
+                </div>
             `;
             
             // UI en status reset
-            deductionSelectedLocation = null; 
+            deductionSelectedCityData = null; 
+            deductionCityInput.value = '';
             deductionSubmitButton.disabled = true; 
-            deductionLocationLabel.textContent = 'Klik op de kaart om een locatie te kiezen.';
-            drawMap(deductionMapCanvas); // Kaart resetten
 
             updateDeductionDisplay();
             renderDeductionHistory(); 
@@ -734,7 +816,7 @@
                 
                 listItem.innerHTML = `
                     <span class="font-bold text-gray-700 mr-2">Gok ${GUESSING_MAX_TURNS - guessingTurnsLeft - index}:</span>
-                    <span>${turn.name} (${turn.country}): </span>
+                    <span>${turn.name}, ${turn.country}</span>
                     <span class="font-black ${turn.textColor}">${turn.guess}°C (${turn.feedback})</span>
                 `;
                 guessingHistoryLog.appendChild(listItem);
@@ -746,9 +828,9 @@
             guessingTurnsLeft = GUESSING_MAX_TURNS;
             gameActive = true;
             guessingTurnHistory = []; 
-            guessingSelectedLocation = null; 
+            guessingSelectedCityData = null; 
             
-            guessingLocationLabel.textContent = 'Klik op de kaart om een locatie te kiezen.';
+            guessingCityInput.value = '';
             guessingSubmitButton.disabled = true; 
             guessingSubmitButton.textContent = "Controleer Temperatuur";
 
@@ -757,29 +839,20 @@
 
             guessingGameBoard.classList.remove('hidden'); 
             guessingEndScreen.classList.add('hidden');
-
-            // Kaart initialiseren en event listener toevoegen
-            guessingMapCanvas.width = guessingMapCanvas.offsetWidth;
-            guessingMapCanvas.height = guessingMapCanvas.offsetWidth / 2;
-            drawMap(guessingMapCanvas);
-            guessingMapCanvas.onclick = (e) => handleMapClick(e, 'guessing');
         }
 
         async function handleGuessingTurn() {
-            if (!gameActive || guessingTurnsLeft === 0 || !guessingSelectedLocation) return;
+            if (!gameActive || guessingTurnsLeft === 0 || !guessingSelectedCityData) return;
             
-            const { lat, lon } = guessingSelectedLocation;
+            const cityData = guessingSelectedCityData;
 
             // 1. Haal temperatuur op
-            const temperature = await fetchTemperature(guessingSelectedLocation, guessingTurnResult);
+            const temperature = await fetchTemperature(cityData, guessingTurnResult);
             
             if (temperature === null) {
                 guessingSubmitButton.disabled = true; 
                 return; 
             }
-
-            // 2. Haal naam op voor geschiedenis
-            const geoInfo = await reverseGeocode(lat, lon);
 
             const guess = temperature;
             let feedback = '';
@@ -804,21 +877,28 @@
             guessingTurnsLeft--; 
 
             guessingTurnHistory.push({ 
-                name: geoInfo.name, country: geoInfo.country, 
+                name: cityData.name, country: cityData.country, 
                 guess: guess, feedback: feedback, color: color, textColor: textColor,
-                lat: lat, lon: lon
+                lat: cityData.lat, lon: cityData.lon
             });
             
+            // Bepaal thematische emoji
+            const emoji = guess > 25 ? '☀️' : guess < 5 ? '❄️' : '☁️';
+            
             guessingTurnResult.innerHTML = `
-                <p class="text-sm text-gray-700 font-medium">Temperatuur van ${geoInfo.name}: <span class="font-bold ${textColor}">${guess}°C</span></p>
-                <p class="text-sm text-gray-700 mt-1">Feedback: Het geheime getal is <span class="font-bold text-lg ${textColor}">${feedback}</span>.</p>
+                <div class="result-content">
+                    <span class="temp-icon">${emoji}</span>
+                    <div>
+                        <p class="text-sm text-gray-700 font-medium">Temperatuur van ${cityData.name}, ${cityData.country}: <span class="font-bold ${textColor}">${guess}°C</span></p>
+                        <p class="text-sm text-gray-700 mt-1">Feedback: Het geheime getal is <span class="font-bold text-lg ${textColor}">${feedback}</span>.</p>
+                    </div>
+                </div>
             `;
             
             // UI en status reset
-            guessingSelectedLocation = null; 
+            guessingSelectedCityData = null; 
+            guessingCityInput.value = '';
             guessingSubmitButton.disabled = true; 
-            guessingLocationLabel.textContent = 'Klik op de kaart om een locatie te kiezen.';
-            drawMap(guessingMapCanvas); // Kaart resetten
 
             updateGuessingDisplay();
             renderGuessingHistory(); 
@@ -856,9 +936,21 @@
         
         // Deduction Game Listeners
         deductionSubmitButton.addEventListener('click', handleDeductionTurn);
+        deductionCityInput.addEventListener('input', (e) => handleCityInput(e, 'deduction'));
+        deductionCityInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !deductionSubmitButton.disabled) {
+                handleDeductionTurn();
+            }
+        });
         
         // Guessing Game Listeners
         guessingSubmitButton.addEventListener('click', handleGuessingTurn);
+        guessingCityInput.addEventListener('input', (e) => handleCityInput(e, 'guessing'));
+        guessingCityInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !guessingSubmitButton.disabled) {
+                handleGuessingTurn();
+            }
+        });
 
         // Start de initiële API-controle bij het laden van de pagina
         window.onload = checkApiStatus;
