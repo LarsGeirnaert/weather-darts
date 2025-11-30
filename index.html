@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temperatuur Aftrek Spel</title>
+    <!-- Laad Tailwind CSS voor snelle, responsieve styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font voor een speelse look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7fafc;
+        }
+        .container-card {
+            background: linear-gradient(145deg, #ffffff, #f0f4f8);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+        }
+        .pulse {
+            animation: pulse-animation 1.5s infinite;
+        }
+        @keyframes pulse-animation {
+            0% { box-shadow: 0 0 0 0px rgba(255, 100, 100, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(255, 100, 100, 0); }
+            100% { box-shadow: 0 0 0 0px rgba(255, 100, 100, 0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div id="game-container" class="container-card w-full p-6 sm:p-8 rounded-xl border border-gray-200">
+        
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">🌡️ Temperatuur Aftrek Spel</h1>
+        
+        <!-- API Status / Laadindicator -->
+        <div id="status-message" class="text-center p-3 mb-4 rounded-lg font-semibold bg-gray-100 text-gray-600">
+            Initialiseren...
+        </div>
+
+        <!-- Spelbord (Alleen zichtbaar na succesvolle API-test) -->
+        <div id="game-board" class="space-y-4 hidden">
+            
+            <div class="p-4 bg-yellow-50 rounded-lg border-2 border-yellow-200 text-center">
+                <p class="text-sm font-medium text-yellow-700">DOEL: Eindig na 5 beurten zo dicht mogelijk bij 0°C (niet negatief).</p>
+            </div>
+
+            <!-- Score Display -->
+            <div class="flex justify-between items-center p-4 bg-blue-600 text-white rounded-lg shadow-lg">
+                <div>
+                    <p class="text-sm opacity-80">Nog af te trekken:</p>
+                    <p id="target-display" class="text-4xl font-extrabold"></p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm opacity-80">Beurten over:</p>
+                    <p id="turns-display" class="text-3xl font-extrabold"></p>
+                </div>
+            </div>
+
+            <!-- Input Form -->
+            <div class="mt-6 space-y-3">
+                <input type="text" id="city-input" placeholder="Voer een stad in (bv. Parijs, New York)" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150">
+                <button id="submit-button" class="w-full bg-blue-500 text-white p-3 rounded-lg font-bold hover:bg-blue-600 transition duration-150 active:bg-blue-700 disabled:bg-gray-400" disabled>
+                    Trek Temperatuur Af
+                </button>
+            </div>
+
+            <!-- Resultaat Beurt -->
+            <div id="turn-result" class="mt-4 p-3 bg-white border border-gray-200 rounded-lg hidden"></div>
+        </div>
+        
+        <!-- Eindscherm -->
+        <div id="end-screen" class="hidden text-center p-6 rounded-lg">
+            <h2 id="end-title" class="text-2xl font-bold mb-3"></h2>
+            <p id="end-message" class="text-lg mb-6"></p>
+            <button onclick="startGame()" class="bg-green-500 text-white p-3 rounded-lg font-bold hover:bg-green-600 transition duration-150">
+                Nieuw Spel Starten
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Configuratie & State ---
+        const API_KEY = "b10dc274a5e56f6f6fc4fe68a7987217"; // Jouw ingevoerde sleutel
+        const WEATHER_API_URL = "https://api.openweathermap.org/data/2.5/weather"; 
+        const MAX_TURNS = 5;
+
+        let targetTemp = 0;
+        let turnsLeft = MAX_TURNS;
+        let gameActive = false;
+
+        // --- DOM Elementen ---
+        const statusMessage = document.getElementById('status-message');
+        const gameBoard = document.getElementById('game-board');
+        const endScreen = document.getElementById('end-screen');
+        const targetDisplay = document.getElementById('target-display');
+        const turnsDisplay = document.getElementById('turns-display');
+        const cityInput = document.getElementById('city-input');
+        const submitButton = document.getElementById('submit-button');
+        const turnResult = document.getElementById('turn-result');
+        const endTitle = document.getElementById('end-title');
+        const endMessage = document.getElementById('end-message');
+
+
+        // --- API Functies ---
+
+        /**
+         * Test de API-sleutel op geldigheid door een verzoek voor Londen te sturen.
+         * @returns {Promise<boolean>}
+         */
+        async function testApiConnection() {
+            statusMessage.textContent = "🔬 API-verbinding testen met OpenWeatherMap...";
+            statusMessage.className = "text-center p-3 mb-4 rounded-lg font-semibold bg-blue-100 text-blue-700";
+
+            const testParams = new URLSearchParams({
+                q: "London",
+                appid: API_KEY,
+                units: 'metric'
+            }).toString();
+
+            try {
+                const response = await fetch(`${WEATHER_API_URL}?${testParams}`);
+                
+                if (response.status === 200) {
+                    statusMessage.textContent = "✅ API-sleutel is geldig en actief. Je kunt beginnen!";
+                    statusMessage.className = "text-center p-3 mb-4 rounded-lg font-semibold bg-green-100 text-green-700";
+                    return true;
+                } else if (response.status === 401) {
+                    statusMessage.textContent = "❌ FOUT (401 Unauthorized): API-sleutel is ongeldig of nog niet actief. Wacht even en probeer opnieuw.";
+                    statusMessage.className = "text-center p-3 mb-4 rounded-lg font-semibold bg-red-100 text-red-700 pulse";
+                    return false;
+                } else {
+                    statusMessage.textContent = `❌ FOUT (${response.status}): Onbekende fout bij de API. Controleer de sleutel.`;
+                    statusMessage.className = "text-center p-3 mb-4 rounded-lg font-semibold bg-red-100 text-red-700";
+                    return false;
+                }
+            } catch (error) {
+                statusMessage.textContent = "❌ Netwerkfout: Kan geen verbinding maken met de API-service. Controleer je internetverbinding.";
+                statusMessage.className = "text-center p-3 mb-4 rounded-lg font-semibold bg-red-100 text-red-700";
+                return false;
+            }
+        }
+
+        /**
+         * Haalt de live temperatuur op voor de ingevoerde stad.
+         * @param {string} city
+         * @returns {Promise<number|null>}
+         */
+        async function fetchTemperature(city) {
+            submitButton.disabled = true;
+            cityInput.disabled = true;
+            turnResult.innerHTML = `<span class="text-blue-500">🌍 Bezig met ophalen van temperatuur voor ${city}...</span>`;
+            turnResult.classList.remove('hidden');
+
+            const params = new URLSearchParams({
+                q: city,
+                appid: API_KEY,
+                units: 'metric'
+            }).toString();
+
+            try {
+                const response = await fetch(`${WEATHER_API_URL}?${params}`);
+                const data = await response.json();
+                
+                if (response.status === 200) {
+                    const temp = Math.round(data.main.temp * 10) / 10; // Rond af op 1 decimaal
+                    turnResult.innerHTML = `<span class="text-green-600">✅ Live temperatuur geladen.</span>`;
+                    return temp;
+                } else if (response.status === 404) {
+                    turnResult.innerHTML = `<span class="text-red-500">❌ Fout (404): Stad '${city}' is niet gevonden. Probeer een andere naam.</span>`;
+                    return null;
+                } else {
+                    turnResult.innerHTML = `<span class="text-red-500">❌ Fout (${response.status}): Kon temperatuur niet ophalen.</span>`;
+                    return null;
+                }
+            } catch (error) {
+                turnResult.innerHTML = `<span class="text-red-500">❌ Netwerkfout bij ophalen data.</span>`;
+                return null;
+            } finally {
+                submitButton.disabled = false;
+                cityInput.disabled = false;
+            }
+        }
+
+        // --- Spel Logica ---
+
+        function startGame() {
+            // Verberg alle schermen
+            gameBoard.classList.add('hidden');
+            endScreen.classList.add('hidden');
+            statusMessage.classList.add('hidden');
+
+            // 1. Initialiseer staat
+            targetTemp = Math.floor(Math.random() * 101) + 50; // Tussen 50 en 150
+            turnsLeft = MAX_TURNS;
+            gameActive = true;
+
+            // 2. Reset UI
+            cityInput.value = '';
+            cityInput.focus();
+            turnResult.classList.add('hidden');
+            submitButton.disabled = false;
+            
+            updateDisplay();
+
+            // 3. Toon het bord
+            gameBoard.classList.remove('hidden');
+            
+            // 4. Test API, tenzij deze al eerder succesvol was (voor herstart)
+            if (statusMessage.classList.contains('bg-green-100')) {
+                // Sla de test over als deze al groen was
+            } else {
+                checkApiAndStart();
+            }
+        }
+
+        async function checkApiAndStart() {
+            gameBoard.classList.add('hidden');
+            statusMessage.classList.remove('hidden');
+            
+            if (await testApiConnection()) {
+                // Als de test slaagt, toon het bord
+                statusMessage.classList.add('hidden');
+                gameBoard.classList.remove('hidden');
+                updateDisplay();
+            } else {
+                // Laat de foutmelding van de test staan als deze faalt
+                submitButton.disabled = true;
+                gameActive = false;
+            }
+        }
+
+
+        function updateDisplay() {
+            targetDisplay.textContent = `${targetTemp.toFixed(1)}°C`;
+            turnsDisplay.textContent = `${turnsLeft}/${MAX_TURNS}`;
+
+            if (targetTemp < 0) {
+                targetDisplay.classList.add('text-red-400');
+            } else {
+                targetDisplay.classList.remove('text-red-400');
+            }
+        }
+
+        async function handleTurn() {
+            if (!gameActive || turnsLeft === 0) return;
+
+            const city = cityInput.value.trim();
+            if (!city) {
+                turnResult.innerHTML = `<span class="text-yellow-600">Voer eerst een stad in!</span>`;
+                turnResult.classList.remove('hidden');
+                return;
+            }
+
+            const temperature = await fetchTemperature(city);
+
+            cityInput.value = ''; // Input wissen
+
+            if (temperature === null) {
+                return; // Fout al gemeld door fetchTemperature
+            }
+            
+            // Verwerk de aftreksom
+            const oldTarget = targetTemp;
+            targetTemp -= temperature;
+            turnsLeft--;
+            
+            // Toon de aftreksom
+            turnResult.innerHTML = `
+                <p class="text-sm text-gray-700">Aftreksom: ${oldTarget.toFixed(1)}°C - ${temperature.toFixed(1)}°C = <span class="font-bold text-lg text-blue-700">${targetTemp.toFixed(1)}°C</span></p>
+            `;
+            
+            updateDisplay();
+
+            // Controleer de spelstatus
+            if (targetTemp <= 0 || turnsLeft === 0) {
+                endGame();
+            }
+        }
+
+        function endGame() {
+            gameActive = false;
+            gameBoard.classList.add('hidden');
+            endScreen.classList.remove('hidden');
+
+            const score = targetTemp;
+            
+            if (score === 0) {
+                endTitle.textContent = "🏆 PERFECTE SCORE! 🏆";
+                endTitle.className = "text-2xl font-bold mb-3 text-green-600";
+                endMessage.textContent = "Je hebt precies 0.0°C bereikt! Meesterlijke strategie!";
+            } else if (score > 0) {
+                endTitle.textContent = "Einde Spel!";
+                endTitle.className = "text-2xl font-bold mb-3 text-yellow-700";
+                endMessage.textContent = `De beurten zijn op. Je hebt nog ${score.toFixed(1)}°C over. Score: ${score.toFixed(1)} punten.`;
+            } else { // score < 0
+                endTitle.textContent = "🚨 Over De Schreef! 🚨";
+                endTitle.className = "text-2xl font-bold mb-3 text-red-600";
+                endMessage.textContent = `Je bent onder nul geëindigd met ${score.toFixed(1)}°C. Probeer de volgende keer conservatiever te zijn.`;
+            }
+        }
+
+        // --- Event Listeners ---
+        submitButton.addEventListener('click', handleTurn);
+        cityInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleTurn();
+            }
+        });
+
+        // Start de initiële API-controle bij het laden van de pagina
+        window.onload = checkApiAndStart;
+
+    </script>
+</body>
+</html>
