@@ -3,315 +3,865 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Temperatuur Aftrek Spel</title>
-    <!-- Laad Tailwind CSS voor snelle, responsieve styling -->
+    <title>Weer Spelletjes Hub</title>
+    <!-- Load Tailwind CSS voor snelle, responsieve styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Custom font voor een speelse look */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f7fafc;
+            background-color: #e0f2f7; /* Lichtblauwe, koele achtergrond */
+            background-image: radial-gradient(#d1edf4 1px, transparent 1px), radial-gradient(#d1edf4 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
         }
         .container-card {
-            background: linear-gradient(145deg, #ffffff, #f0f4f8);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            max-width: 500px;
+            background: linear-gradient(135deg, #ffffff 0%, #f7f9fa 100%);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+            max-width: 550px;
+            border-radius: 1.5rem; /* Meer afgerond */
         }
-        .pulse {
-            animation: pulse-animation 1.5s infinite;
+        .button-primary {
+            background-color: #0d9488; /* Teal kleur, thematisch */
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 6px #0f766e;
+            transform: translateY(0);
         }
-        @keyframes pulse-animation {
-            0% { box-shadow: 0 0 0 0px rgba(255, 100, 100, 0.7); }
-            50% { box-shadow: 0 0 0 10px rgba(255, 100, 100, 0); }
-            100% { box-shadow: 0 0 0 0px rgba(255, 100, 100, 0); }
+        .button-primary:hover {
+            background-color: #0f766e;
+        }
+        .button-primary:active {
+            box-shadow: 0 2px #0f766e;
+            transform: translateY(4px);
+        }
+        .menu-button {
+            padding: 1.2rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 800;
+            transition: all 0.2s;
+            box-shadow: 0 8px #a855f7; /* Paarse schaduw voor contrast */
+            background-color: #c084fc;
+        }
+        .menu-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px #a855f7;
+        }
+        .score-panel {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        }
+        /* Nieuwe stijl voor de kaart */
+        #world-map-canvas {
+            border: 4px solid #1d4ed8;
+            border-radius: 10px;
+            cursor: crosshair;
+            background-color: #a0c4ff; /* Lichte oceaan kleur */
+            width: 100%;
+            display: block;
+            margin: 0 auto;
+        }
+        .map-wrapper {
+            position: relative;
+            /* 2:1 aspect ratio voor een wereldkaart */
+            padding-bottom: 50%; 
+            height: 0;
+            overflow: hidden;
+            border-radius: 10px;
+        }
+        .map-wrapper canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        /* Stijl voor de geschiedenis (scrollable) */
+        #history-log-container {
+            max-height: 250px;
+            overflow-y: auto;
         }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
 
-    <div id="game-container" class="container-card w-full p-6 sm:p-8 rounded-xl border border-gray-200">
-        
-        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">🌡️ Temperatuur Aftrek Spel</h1>
-        
+    <!-- MAIN MENU VIEW -->
+    <div id="main-menu" class="container-card w-full p-8 rounded-3xl border border-gray-100 text-center">
+        <h1 class="text-5xl font-black text-gray-900 mb-8 tracking-tight">
+            Weer Spelletjes Hub
+        </h1>
+        <p class="text-xl text-gray-600 mb-10">Kies een spel om te starten:</p>
+
+        <div class="space-y-6">
+            <!-- Game 1 Button -->
+            <button id="startGameButton" onclick="checkApiAndStart('deduction')" class="menu-button w-full text-white disabled:bg-gray-400 disabled:shadow-none disabled:transform-none">
+                <span class="mr-2">🌡️</span> 1. Temperatuur Aftrek Spel
+            </button>
+            <!-- Game 2 Button -->
+            <button id="startGameGuessButton" onclick="checkApiAndStart('guessing')" class="menu-button w-full text-white disabled:bg-gray-400 disabled:shadow-none disabled:transform-none">
+                <span class="mr-2">🎲</span> 2. Temperatuur Raden
+            </button>
+        </div>
+
         <!-- API Status / Laadindicator -->
-        <div id="status-message" class="text-center p-3 mb-4 rounded-lg font-semibold bg-gray-100 text-gray-600">
+        <div id="status-message" class="text-center p-3 mt-10 rounded-lg font-semibold bg-gray-100 text-gray-600">
             Initialiseren...
         </div>
+    </div>
 
-        <!-- Spelbord (Alleen zichtbaar na succesvolle API-test) -->
-        <div id="game-board" class="space-y-4 hidden">
+    <!-- GAME VIEW - CONTAINER FOR BOTH GAMES -->
+    <div id="game-container" class="container-card w-full p-8 rounded-3xl border border-gray-100 hidden">
+        
+        <button onclick="showView('menu')" class="mb-6 text-blue-600 hover:text-blue-800 font-bold flex items-center transition-colors">
+            <span class="text-2xl mr-2">◀</span> Terug naar Hoofdmenu
+        </button>
+
+        <!-- Game 1: Temperatuur Aftrek Spel -->
+        <div id="deduction-game" class="hidden">
+            <h1 class="text-4xl font-black text-center text-gray-900 mb-8">
+                Temperatuur Aftrek Spel
+            </h1>
             
-            <div class="p-4 bg-yellow-50 rounded-lg border-2 border-yellow-200 text-center">
-                <p class="text-sm font-medium text-yellow-700">DOEL: Eindig na 5 beurten zo dicht mogelijk bij 0°C (niet negatief).</p>
-            </div>
-
-            <!-- Score Display -->
-            <div class="flex justify-between items-center p-4 bg-blue-600 text-white rounded-lg shadow-lg">
-                <div>
-                    <p class="text-sm opacity-80">Nog af te trekken:</p>
-                    <p id="target-display" class="text-4xl font-extrabold"></p>
+            <div id="deduction-game-board" class="space-y-6 hidden">
+                
+                <div class="p-4 bg-amber-50 rounded-xl border-2 border-amber-300 text-center shadow-inner">
+                    <p class="text-base font-medium text-amber-800 flex items-center justify-center">
+                        <span class="mr-2 text-xl">🎯</span> DOEL: Eindig na 5 beurten zo dicht mogelijk bij 0°C.
+                    </p>
+                    <p id="deduction-guess-warning" class="text-sm mt-1 font-bold text-red-600">
+                        LET OP: Je mag elke locatie maar ÉÉN KEER gokken!
+                    </p>
                 </div>
-                <div class="text-right">
-                    <p class="text-sm opacity-80">Beurten over:</p>
-                    <p id="turns-display" class="text-3xl font-extrabold"></p>
-                </div>
-            </div>
 
-            <!-- Input Form -->
-            <div class="mt-6 space-y-3">
-                <input type="text" id="city-input" placeholder="Voer een stad in (bv. Parijs, New York)" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150">
-                <button id="submit-button" class="w-full bg-blue-500 text-white p-3 rounded-lg font-bold hover:bg-blue-600 transition duration-150 active:bg-blue-700 disabled:bg-gray-400" disabled>
-                    Trek Temperatuur Af
+                <!-- Score Display -->
+                <div class="score-panel flex justify-between items-center p-6 text-white rounded-xl shadow-2xl transition duration-300">
+                    <div>
+                        <p class="text-lg font-medium opacity-80">Nog af te trekken:</p>
+                        <p id="deduction-target-display" class="text-6xl font-black mt-1 tracking-tight"></p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-lg font-medium opacity-80">Beurten over:</p>
+                        <p id="deduction-turns-display" class="text-5xl font-black mt-1 tracking-tight"></p>
+                    </div>
+                </div>
+
+                <!-- Map Input -->
+                <div class="mt-6 space-y-4">
+                    <p id="deduction-location-label" class="text-center text-sm font-semibold text-gray-700">Klik op de kaart om een locatie te kiezen.</p>
+                    <div class="map-wrapper">
+                        <canvas id="deduction-map-canvas"></canvas>
+                    </div>
+                    <button id="deduction-submit-button" class="w-full button-primary text-white p-4 rounded-xl font-extrabold text-xl disabled:bg-gray-400 disabled:shadow-none disabled:transform-none" disabled>
+                        Trek Temperatuur Af
+                    </button>
+                </div>
+
+                <!-- Resultaat Beurt -->
+                <div id="deduction-turn-result" class="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-xl shadow-md hidden transition-all duration-300"></div>
+                
+                <!-- Geschiedenis Log -->
+                <div id="deduction-history-container" class="mt-8 pt-4 border-t border-gray-300">
+                    <h3 class="text-lg font-bold text-gray-700 mb-3 flex items-center">
+                        <span class="mr-2 text-xl">📜</span> Historie van Worpen:
+                    </h3>
+                    <div id="deduction-history-log-container" class="bg-white rounded-xl border border-gray-300 shadow-inner p-4">
+                        <ul id="deduction-history-log" class="space-y-3">
+                            <!-- Geschiedenis items komen hier -->
+                        </ul>
+                        <p id="deduction-history-placeholder" class="text-sm text-gray-500">Nog geen locaties gekozen.</p>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- Eindscherm -->
+            <div id="deduction-end-screen" class="hidden text-center p-10 rounded-xl bg-white border-4 border-dashed border-gray-300">
+                <h2 id="deduction-end-title" class="text-4xl font-black mb-4"></h2>
+                <p id="deduction-end-message" class="text-xl mb-8 text-gray-700"></p>
+                <button onclick="initializeDeductionGame()" class="bg-purple-600 text-white p-3 px-6 rounded-full font-bold text-lg hover:bg-purple-700 transition duration-150 shadow-xl">
+                    Nieuw Spel Starten
                 </button>
             </div>
-
-            <!-- Resultaat Beurt -->
-            <div id="turn-result" class="mt-4 p-3 bg-white border border-gray-200 rounded-lg hidden"></div>
         </div>
         
-        <!-- Eindscherm -->
-        <div id="end-screen" class="hidden text-center p-6 rounded-lg">
-            <h2 id="end-title" class="text-2xl font-bold mb-3"></h2>
-            <p id="end-message" class="text-lg mb-6"></p>
-            <button onclick="startGame()" class="bg-green-500 text-white p-3 rounded-lg font-bold hover:bg-green-600 transition duration-150">
-                Nieuw Spel Starten
-            </button>
+        <!-- Game 2: Temperatuur Raden -->
+        <div id="guessing-game" class="hidden">
+            <h1 class="text-4xl font-black text-center text-gray-900 mb-8">
+                Temperatuur Raden
+            </h1>
+            
+            <div id="guessing-game-board" class="space-y-6 hidden">
+                
+                <div class="p-4 bg-teal-50 rounded-xl border-2 border-teal-300 text-center shadow-inner">
+                    <p class="text-base font-medium text-teal-800 flex items-center justify-center">
+                        <span class="mr-2 text-xl">❓</span> DOEL: Raad het geheime getal tussen 5 en 30 binnen 7 beurten.
+                    </p>
+                    <p id="guessing-guess-warning" class="text-sm mt-1 font-bold text-teal-600">
+                        De temperatuur van de gekozen locatie is je gok.
+                    </p>
+                </div>
+
+                <!-- Score Display -->
+                <div class="score-panel flex justify-between items-center p-6 text-white rounded-xl shadow-2xl transition duration-300">
+                    <div>
+                        <p class="text-lg font-medium opacity-80">Geheim Getal:</p>
+                        <p id="guessing-target-display" class="text-6xl font-black mt-1 tracking-tight">??</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-lg font-medium opacity-80">Gokken over:</p>
+                        <p id="guessing-turns-display" class="text-5xl font-black mt-1 tracking-tight"></p>
+                    </div>
+                </div>
+
+                <!-- Map Input -->
+                <div class="mt-6 space-y-4">
+                    <p id="guessing-location-label" class="text-center text-sm font-semibold text-gray-700">Klik op de kaart om een locatie te kiezen.</p>
+                    <div class="map-wrapper">
+                        <canvas id="guessing-map-canvas"></canvas>
+                    </div>
+                    <button id="guessing-submit-button" class="w-full button-primary text-white p-4 rounded-xl font-extrabold text-xl disabled:bg-gray-400 disabled:shadow-none disabled:transform-none" disabled>
+                        Controleer Temperatuur
+                    </button>
+                </div>
+
+                <!-- Resultaat Beurt -->
+                <div id="guessing-turn-result" class="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-xl shadow-md hidden transition-all duration-300"></div>
+                
+                <!-- Historie Raden -->
+                <div id="guessing-history-container" class="mt-8 pt-4 border-t border-gray-300">
+                    <h3 class="text-lg font-bold text-gray-700 mb-3 flex items-center">
+                        <span class="mr-2 text-xl">🧐</span> Eerdere Gokken:
+                    </h3>
+                    <div id="guessing-history-log-container" class="bg-white rounded-xl border border-gray-300 shadow-inner p-4">
+                        <ul id="guessing-history-log" class="space-y-3">
+                            <!-- Geschiedenis items komen hier -->
+                        </ul>
+                        <p id="guessing-history-placeholder" class="text-sm text-gray-500">Nog geen gokken gedaan.</p>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- Eindscherm -->
+            <div id="guessing-end-screen" class="hidden text-center p-10 rounded-xl bg-white border-4 border-dashed border-gray-300">
+                <h2 id="guessing-end-title" class="text-4xl font-black mb-4"></h2>
+                <p id="guessing-end-message" class="text-xl mb-8 text-gray-700"></p>
+                <button onclick="initializeGuessingGame()" class="bg-purple-600 text-white p-3 px-6 rounded-full font-bold text-lg hover:bg-purple-700 transition duration-150 shadow-xl">
+                    Nieuw Spel Starten
+                </button>
+            </div>
         </div>
 
     </div>
 
     <script>
         // --- Configuratie & State ---
-        const API_KEY = "b10dc274a5e56f6f6fc4fe68a7987217"; // Jouw ingevoerde sleutel
-        const WEATHER_API_URL = "https://api.openweathermap.org/data/2.5/weather"; 
-        const MAX_TURNS = 5;
+        // Jouw API-sleutel. Let op: deze is openbaar zichtbaar in de browser.
+        const API_KEY = "b10dc274a5e56f6f6fc4fe68a7987217"; 
+        const GEO_API_URL = "https://api.openweathermap.org/geo/1.0/reverse"; // Gebruiken voor LAT/LON -> Naam
+        const FORECAST_API_URL = "https://api.openweathermap.org/data/2.5/forecast"; 
 
-        let targetTemp = 0;
-        let turnsLeft = MAX_TURNS;
+        const DEDUCTION_MAX_TURNS = 5;
+        const GUESSING_MAX_TURNS = 7; 
+        const GUESSING_MIN_TARGET = 5; 
+        const GUESSING_MAX_TARGET = 30;
+
+        // --- DEDUCTION GAME STATE ---
+        let deductionTargetTemp = 0;
+        let deductionTurnsLeft = DEDUCTION_MAX_TURNS;
+        let deductionTurnHistory = []; 
+        let deductionSelectedLocation = null; // NIEUW: {lat, lon, name, country}
+
+        // --- GUESSING GAME STATE ---
+        let guessingSecretNumber = 0; 
+        let guessingTurnsLeft = GUESSING_MAX_TURNS;
+        let guessingTurnHistory = []; 
+        let guessingSelectedLocation = null;
+        
         let gameActive = false;
+        let currentView = 'menu';
 
         // --- DOM Elementen ---
+        const mainMenu = document.getElementById('main-menu');
+        const gameContainer = document.getElementById('game-container');
         const statusMessage = document.getElementById('status-message');
-        const gameBoard = document.getElementById('game-board');
-        const endScreen = document.getElementById('end-screen');
-        const targetDisplay = document.getElementById('target-display');
-        const turnsDisplay = document.getElementById('turns-display');
-        const cityInput = document.getElementById('city-input');
-        const submitButton = document.getElementById('submit-button');
-        const turnResult = document.getElementById('turn-result');
-        const endTitle = document.getElementById('end-title');
-        const endMessage = document.getElementById('end-message');
+        const startGameButton = document.getElementById('startGameButton'); 
+        const startGameGuessButton = document.getElementById('startGameGuessButton'); 
+
+        // --- DEDUCTION DOM ---
+        const deductionGame = document.getElementById('deduction-game');
+        const deductionGameBoard = document.getElementById('deduction-game-board');
+        const deductionEndScreen = document.getElementById('deduction-end-screen');
+        const deductionTargetDisplay = document.getElementById('deduction-target-display');
+        const deductionTurnsDisplay = document.getElementById('deduction-turns-display');
+        const deductionSubmitButton = document.getElementById('deduction-submit-button');
+        const deductionTurnResult = document.getElementById('deduction-turn-result');
+        const deductionHistoryLog = document.getElementById('deduction-history-log');
+        const deductionHistoryPlaceholder = document.getElementById('deduction-history-placeholder');
+        const deductionMapCanvas = document.getElementById('deduction-map-canvas');
+        const deductionLocationLabel = document.getElementById('deduction-location-label');
+
+        // --- GUESSING DOM ---
+        const guessingGame = document.getElementById('guessing-game');
+        const guessingGameBoard = document.getElementById('guessing-game-board');
+        const guessingEndScreen = document.getElementById('guessing-end-screen');
+        const guessingTargetDisplay = document.getElementById('guessing-target-display');
+        const guessingTurnsDisplay = document.getElementById('guessing-turns-display');
+        const guessingSubmitButton = document.getElementById('guessing-submit-button');
+        const guessingTurnResult = document.getElementById('guessing-turn-result');
+        const guessingHistoryLog = document.getElementById('guessing-history-log');
+        const guessingHistoryPlaceholder = document.getElementById('guessing-history-placeholder');
+        const guessingMapCanvas = document.getElementById('guessing-map-canvas');
+        const guessingLocationLabel = document.getElementById('guessing-location-label');
 
 
-        // --- API Functies ---
+        // --- View Management ---
+        function showView(viewName) {
+            mainMenu.classList.add('hidden');
+            gameContainer.classList.add('hidden');
+            deductionGame.classList.add('hidden');
+            guessingGame.classList.add('hidden');
+            
+            currentView = viewName;
+
+            if (viewName === 'menu') {
+                mainMenu.classList.remove('hidden');
+                checkApiStatus(); 
+            } else if (viewName === 'game') {
+                gameContainer.classList.remove('hidden');
+            }
+        }
+
+        // --- API & Core Functies ---
 
         /**
-         * Test de API-sleutel op geldigheid door een verzoek voor Londen te sturen.
-         * @returns {Promise<boolean>}
+         * Gebruikt Reverse Geocoding om een naam te krijgen voor de gekozen LAT/LON.
+         * Dit is optioneel, maar maakt de geschiedenis leesbaarder.
+         * @param {number} lat
+         * @param {number} lon
+         * @returns {Promise<object>} {name, country}
          */
-        async function testApiConnection() {
-            statusMessage.textContent = "🔬 API-verbinding testen met OpenWeatherMap...";
-            statusMessage.className = "text-center p-3 mb-4 rounded-lg font-semibold bg-blue-100 text-blue-700";
-
-            const testParams = new URLSearchParams({
-                q: "London",
+        async function reverseGeocode(lat, lon) {
+            const geoParams = new URLSearchParams({
+                lat: lat,
+                lon: lon,
+                limit: 1,
                 appid: API_KEY,
-                units: 'metric'
             }).toString();
 
             try {
-                const response = await fetch(`${WEATHER_API_URL}?${testParams}`);
+                const response = await fetch(`${GEO_API_URL}?${geoParams}`);
+                const data = await response.json();
+                
+                if (data.length > 0 && data[0].name) {
+                    const name = data[0].name;
+                    const country = data[0].country || 'ONBEKEND';
+                    
+                    // Gebruik de officiële naam, of de coördinaten als fallback
+                    const locationName = name.length > 18 ? `${lat.toFixed(2)}, ${lon.toFixed(2)}` : name;
+                    
+                    return { name: locationName, country: country };
+                }
+            } catch (error) {
+                console.warn("Reverse Geocoding mislukt, gebruikt coördinaten als naam.");
+            }
+            // Fallback als de API faalt of geen stad vindt (bv. in de oceaan)
+            return { name: `Locatie (${lat.toFixed(2)}, ${lon.toFixed(2)})`, country: 'OCEAN' };
+        }
+
+
+        /**
+         * Haalt de GEMIDDELDE temperatuur op voor de geselecteerde coördinaten.
+         * @param {object} locationData - Bevat lat, lon.
+         * @param {HTMLElement} resultElement - Element om fouten in te tonen.
+         * @returns {Promise<number|null>}
+         */
+        async function fetchTemperature(locationData, resultElement) {
+            const forecastParams = new URLSearchParams({
+                lat: locationData.lat, lon: locationData.lon, appid: API_KEY, units: 'metric'
+            }).toString();
+
+            try {
+                const forecastResponse = await fetch(`${FORECAST_API_URL}?${forecastParams}`);
+                const forecastData = await forecastResponse.json();
+
+                if (forecastResponse.status !== 200) {
+                    resultElement.innerHTML = `<span class="text-red-500 font-medium">❌ Fout (${forecastResponse.status}): Kon voorspellingsdata niet ophalen.</span>`;
+                    return null;
+                }
+                
+                // --- BEREKEN HET GEMIDDELDE VAN DE DAG ---
+                let totalTemp = 0;
+                let count = 0;
+                let firstAvailableDate = null;
+                
+                if (forecastData.list && forecastData.list.length > 0) {
+                    firstAvailableDate = forecastData.list[0].dt_txt.slice(0, 10);
+                } else {
+                     resultElement.innerHTML = `<span class="text-red-500 font-medium">❌ Fout: Geen voorspellingslijst beschikbaar.</span>`;
+                     return null;
+                }
+
+                for (const item of forecastData.list) {
+                    if (item.dt_txt.startsWith(firstAvailableDate)) {
+                        totalTemp += item.main.temp;
+                        count++;
+                    }
+                }
+
+                if (count === 0) {
+                    resultElement.innerHTML = `<span class="text-red-500 font-medium">❌ Fout: Kon geen temperatuurmetingen vinden voor de dichtstbijzijnde dag.</span>`;
+                    return null;
+                }
+
+                const averageTemp = totalTemp / count;
+                const roundedTemp = Math.round(averageTemp); 
+                
+                return roundedTemp;
+
+            } catch (error) {
+                resultElement.innerHTML = `<span class="text-red-500 font-medium">❌ Algemene Netwerkfout bij ophalen data.</span>`;
+                return null;
+            }
+        }
+
+        // --- Map Functies ---
+
+        function drawMap(canvas) {
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Zorg ervoor dat de kaart de juiste grootte heeft voor responsiviteit
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+
+            // Teken een zeer simpele wereldkaart (om een idee van locatie te geven)
+            ctx.fillStyle = '#a0c4ff'; // Oceaan
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.fillStyle = '#4caf50'; // Land (vereenvoudigd)
+            // Simpele landmassa's
+            ctx.fillRect(w * 0.1, h * 0.2, w * 0.3, h * 0.6); // Amerika's
+            ctx.fillRect(w * 0.5, h * 0.2, w * 0.4, h * 0.5); // Eurazië
+            ctx.fillRect(w * 0.6, h * 0.7, w * 0.15, h * 0.15); // Australië
+
+            // Teken evenaar en Greenwich meridiaan (hulplijnen)
+            ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, h / 2); // Evenaar
+            ctx.lineTo(w, h / 2);
+            ctx.moveTo(w / 2, 0); // Meridiaan
+            ctx.lineTo(w / 2, h);
+            ctx.stroke();
+        }
+
+        function getLatLonFromClick(event, canvas) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            // Conversie van pixelcoördinaten naar LAT/LON
+            const lon = (x / canvas.width) * 360 - 180; // Breedte: -180 tot 180
+            const lat = 90 - (y / canvas.height) * 180; // Lengte: 90 (boven) tot -90 (onder)
+
+            return { lat: lat, lon: lon };
+        }
+
+        function handleMapClick(event, gameType) {
+            let canvas, submitBtn, locationLabel;
+            
+            if (gameType === 'deduction') {
+                canvas = deductionMapCanvas;
+                submitBtn = deductionSubmitButton;
+                locationLabel = deductionLocationLabel;
+            } else {
+                canvas = guessingMapCanvas;
+                submitBtn = guessingSubmitButton;
+                locationLabel = guessingLocationLabel;
+            }
+
+            const { lat, lon } = getLatLonFromClick(event, canvas);
+
+            // Teken de kaart opnieuw en markeer de gekozen plek
+            drawMap(canvas);
+            const ctx = canvas.getContext('2d');
+            
+            // Teken de 'dartpijl' (rode stip)
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(event.offsetX, event.offsetY, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Sla de geselecteerde locatie op
+            const locationData = { lat, lon };
+
+            if (gameType === 'deduction') {
+                deductionSelectedLocation = locationData;
+            } else {
+                guessingSelectedLocation = locationData;
+            }
+
+            // Update de UI
+            locationLabel.textContent = `Gekozen: LAT ${lat.toFixed(2)}°, LON ${lon.toFixed(2)}°`;
+            submitBtn.disabled = false;
+        }
+
+        // --- Status Management ---
+
+        async function testApiConnection() {
+            // Logica ongewijzigd
+            statusMessage.textContent = "🔬 API-verbinding testen met OpenWeatherMap...";
+            statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-blue-100 text-blue-700";
+
+            const testParams = new URLSearchParams({ q: "London", limit: 1, appid: API_KEY, }).toString();
+
+            try {
+                const response = await fetch(`${GEO_API_URL.replace('/reverse', '/direct')}?${testParams}`); // Gebruik /direct voor testen
                 
                 if (response.status === 200) {
-                    statusMessage.textContent = "✅ API-sleutel is geldig en actief. Je kunt beginnen!";
-                    statusMessage.className = "text-center p-3 mb-4 rounded-lg font-semibold bg-green-100 text-green-700";
+                    statusMessage.textContent = "✅ API-sleutel is geldig en actief. Kies een spel!";
+                    statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-green-100 text-green-700";
                     return true;
-                } else if (response.status === 401) {
-                    statusMessage.textContent = "❌ FOUT (401 Unauthorized): API-sleutel is ongeldig of nog niet actief. Wacht even en probeer opnieuw.";
-                    statusMessage.className = "text-center p-3 mb-4 rounded-lg font-semibold bg-red-100 text-red-700 pulse";
-                    return false;
                 } else {
-                    statusMessage.textContent = `❌ FOUT (${response.status}): Onbekende fout bij de API. Controleer de sleutel.`;
-                    statusMessage.className = "text-center p-3 mb-4 rounded-lg font-semibold bg-red-100 text-red-700";
+                    statusMessage.textContent = "❌ FOUT (401/Netwerk): API-sleutel ongeldig of niet actief. Spellen vereisen live data.";
+                    statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-red-100 text-red-700 pulse";
                     return false;
                 }
             } catch (error) {
-                statusMessage.textContent = "❌ Netwerkfout: Kan geen verbinding maken met de API-service. Controleer je internetverbinding.";
-                statusMessage.className = "text-center p-3 mb-4 rounded-lg font-semibold bg-red-100 text-red-700";
+                statusMessage.textContent = "❌ Netwerkfout: Kan geen verbinding maken met de API-service.";
+                statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-red-100 text-red-700";
                 return false;
             }
         }
+        
+        async function checkApiStatus() {
+            mainMenu.classList.remove('hidden');
+            const success = await testApiConnection();
 
-        /**
-         * Haalt de live temperatuur op voor de ingevoerde stad.
-         * @param {string} city
-         * @returns {Promise<number|null>}
-         */
-        async function fetchTemperature(city) {
-            submitButton.disabled = true;
-            cityInput.disabled = true;
-            turnResult.innerHTML = `<span class="text-blue-500">🌍 Bezig met ophalen van temperatuur voor ${city}...</span>`;
-            turnResult.classList.remove('hidden');
+            if (success) {
+                startGameButton.disabled = false;
+                startGameGuessButton.disabled = false;
+            } else {
+                startGameButton.disabled = true;
+                startGameGuessButton.disabled = true;
+            }
+        }
 
-            const params = new URLSearchParams({
-                q: city,
-                appid: API_KEY,
-                units: 'metric'
-            }).toString();
-
-            try {
-                const response = await fetch(`${WEATHER_API_URL}?${params}`);
-                const data = await response.json();
-                
-                if (response.status === 200) {
-                    const temp = Math.round(data.main.temp * 10) / 10; // Rond af op 1 decimaal
-                    turnResult.innerHTML = `<span class="text-green-600">✅ Live temperatuur geladen.</span>`;
-                    return temp;
-                } else if (response.status === 404) {
-                    turnResult.innerHTML = `<span class="text-red-500">❌ Fout (404): Stad '${city}' is niet gevonden. Probeer een andere naam.</span>`;
-                    return null;
-                } else {
-                    turnResult.innerHTML = `<span class="text-red-500">❌ Fout (${response.status}): Kon temperatuur niet ophalen.</span>`;
-                    return null;
+        async function checkApiAndStart(gameType) {
+            const apiIsActive = statusMessage.classList.contains('bg-green-100');
+            
+            if (apiIsActive || await testApiConnection()) {
+                showView('game');
+                if (gameType === 'deduction') {
+                    deductionGame.classList.remove('hidden');
+                    currentView = 'deduction';
+                    initializeDeductionGame();
+                } else if (gameType === 'guessing') {
+                    guessingGame.classList.remove('hidden');
+                    currentView = 'guessing';
+                    initializeGuessingGame();
                 }
-            } catch (error) {
-                turnResult.innerHTML = `<span class="text-red-500">❌ Netwerkfout bij ophalen data.</span>`;
-                return null;
-            } finally {
-                submitButton.disabled = false;
-                cityInput.disabled = false;
             }
         }
 
-        // --- Spel Logica ---
 
-        function startGame() {
-            // Verberg alle schermen
-            gameBoard.classList.add('hidden');
-            endScreen.classList.add('hidden');
-            statusMessage.classList.add('hidden');
+        // **********************************************
+        // ********** DEDUCTION GAME LOGIC **************
+        // **********************************************
 
-            // 1. Initialiseer staat
-            targetTemp = Math.floor(Math.random() * 101) + 50; // Tussen 50 en 150
-            turnsLeft = MAX_TURNS;
-            gameActive = true;
+        function updateDeductionDisplay() {
+            deductionTargetDisplay.textContent = `${deductionTargetTemp.toFixed(0)}°C`;
+            deductionTurnsDisplay.textContent = `${deductionTurnsLeft}/${DEDUCTION_MAX_TURNS}`;
 
-            // 2. Reset UI
-            cityInput.value = '';
-            cityInput.focus();
-            turnResult.classList.add('hidden');
-            submitButton.disabled = false;
-            
-            updateDisplay();
-
-            // 3. Toon het bord
-            gameBoard.classList.remove('hidden');
-            
-            // 4. Test API, tenzij deze al eerder succesvol was (voor herstart)
-            if (statusMessage.classList.contains('bg-green-100')) {
-                // Sla de test over als deze al groen was
+            if (deductionTargetTemp < 0) {
+                deductionTargetDisplay.classList.add('text-red-400');
             } else {
-                checkApiAndStart();
+                deductionTargetDisplay.classList.remove('text-red-400');
             }
         }
 
-        async function checkApiAndStart() {
-            gameBoard.classList.add('hidden');
-            statusMessage.classList.remove('hidden');
-            
-            if (await testApiConnection()) {
-                // Als de test slaagt, toon het bord
-                statusMessage.classList.add('hidden');
-                gameBoard.classList.remove('hidden');
-                updateDisplay();
-            } else {
-                // Laat de foutmelding van de test staan als deze faalt
-                submitButton.disabled = true;
-                gameActive = false;
-            }
-        }
-
-
-        function updateDisplay() {
-            targetDisplay.textContent = `${targetTemp.toFixed(1)}°C`;
-            turnsDisplay.textContent = `${turnsLeft}/${MAX_TURNS}`;
-
-            if (targetTemp < 0) {
-                targetDisplay.classList.add('text-red-400');
-            } else {
-                targetDisplay.classList.remove('text-red-400');
-            }
-        }
-
-        async function handleTurn() {
-            if (!gameActive || turnsLeft === 0) return;
-
-            const city = cityInput.value.trim();
-            if (!city) {
-                turnResult.innerHTML = `<span class="text-yellow-600">Voer eerst een stad in!</span>`;
-                turnResult.classList.remove('hidden');
+        async function renderDeductionHistory() {
+            deductionHistoryLog.innerHTML = ''; 
+            if (deductionTurnHistory.length === 0) {
+                deductionHistoryPlaceholder.classList.remove('hidden');
                 return;
             }
+            deductionHistoryPlaceholder.classList.add('hidden');
 
-            const temperature = await fetchTemperature(city);
+            deductionTurnHistory.slice().reverse().forEach((turn, index) => {
+                const listItem = document.createElement('li');
+                listItem.className = 'text-gray-700 text-sm flex justify-between items-center p-2 rounded-lg transition duration-100 bg-gray-50 hover:bg-gray-100 border-l-4 border-red-400';
+                
+                listItem.innerHTML = `
+                    <span class="font-bold text-blue-700 mr-2">Worp ${DEDUCTION_MAX_TURNS - deductionTurnsLeft - index}:</span>
+                    <span>${turn.name} (${turn.country})</span>
+                    <span class="font-black text-red-600">${turn.temp}°C</span>
+                `;
+                deductionHistoryLog.appendChild(listItem);
+            });
+        }
 
-            cityInput.value = ''; // Input wissen
+        function initializeDeductionGame() {
+            deductionTargetTemp = Math.floor(Math.random() * 101) + 50; 
+            deductionTurnsLeft = DEDUCTION_MAX_TURNS;
+            gameActive = true;
+            deductionTurnHistory = []; 
+            deductionSelectedLocation = null; 
+            
+            deductionLocationLabel.textContent = 'Klik op de kaart om een locatie te kiezen.';
+            deductionSubmitButton.disabled = true; 
+            deductionSubmitButton.textContent = "Trek Temperatuur Af";
 
-            if (temperature === null) {
-                return; // Fout al gemeld door fetchTemperature
+            updateDeductionDisplay(); 
+            renderDeductionHistory(); 
+
+            deductionGameBoard.classList.remove('hidden'); 
+            deductionEndScreen.classList.add('hidden');
+            
+            // Kaart initialiseren en event listener toevoegen
+            deductionMapCanvas.width = deductionMapCanvas.offsetWidth;
+            deductionMapCanvas.height = deductionMapCanvas.offsetWidth / 2;
+            drawMap(deductionMapCanvas);
+            deductionMapCanvas.onclick = (e) => handleMapClick(e, 'deduction');
+        }
+
+        async function handleDeductionTurn() {
+            if (!gameActive || deductionTurnsLeft === 0 || !deductionSelectedLocation) return;
+            
+            const { lat, lon } = deductionSelectedLocation;
+            
+            // 1. Controleer op duplicaten (gebaseerd op LAT/LON afgerond)
+            const keyToCheck = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+            const isDuplicate = deductionTurnHistory.some(turn => `${turn.lat.toFixed(2)},${turn.lon.toFixed(2)}` === keyToCheck);
+
+            if (isDuplicate) {
+                deductionTurnResult.innerHTML = `<span class="text-red-600 font-medium">❌ Fout: Deze coördinaat (${keyToCheck}) is al gegokt. Kies een nieuwe plek!</span>`;
+                deductionTurnResult.classList.remove('hidden');
+                deductionSelectedLocation = null; 
+                deductionSubmitButton.disabled = true;
+                return;
             }
             
-            // Verwerk de aftreksom
-            const oldTarget = targetTemp;
-            targetTemp -= temperature;
-            turnsLeft--;
+            // 2. Haal temperatuur op
+            const temperature = await fetchTemperature(deductionSelectedLocation, deductionTurnResult);
             
-            // Toon de aftreksom
-            turnResult.innerHTML = `
-                <p class="text-sm text-gray-700">Aftreksom: ${oldTarget.toFixed(1)}°C - ${temperature.toFixed(1)}°C = <span class="font-bold text-lg text-blue-700">${targetTemp.toFixed(1)}°C</span></p>
+            if (temperature === null) {
+                deductionSubmitButton.disabled = true; 
+                return; 
+            }
+            
+            // 3. Haal naam op voor geschiedenis
+            const geoInfo = await reverseGeocode(lat, lon);
+            
+            // --- Succesvolle GOK ---
+            const oldTarget = deductionTargetTemp;
+            deductionTargetTemp -= temperature; 
+            deductionTurnsLeft--; 
+
+            deductionTurnHistory.push({ 
+                name: geoInfo.name, 
+                country: geoInfo.country, 
+                temp: temperature,
+                lat: lat,
+                lon: lon
+            });
+            
+            deductionTurnResult.innerHTML = `
+                <p class="text-sm text-gray-700 font-medium">Afgetrokken (Daggemiddelde van ${geoInfo.name}): ${temperature.toFixed(0)}°C</p>
+                <p class="text-sm text-gray-700 mt-1">Nieuw Doel: ${oldTarget.toFixed(0)}°C - ${temperature.toFixed(0)}°C = <span class="font-bold text-xl text-blue-700">${deductionTargetTemp.toFixed(0)}°C</span></p>
             `;
             
-            updateDisplay();
+            // UI en status reset
+            deductionSelectedLocation = null; 
+            deductionSubmitButton.disabled = true; 
+            deductionLocationLabel.textContent = 'Klik op de kaart om een locatie te kiezen.';
+            drawMap(deductionMapCanvas); // Kaart resetten
 
-            // Controleer de spelstatus
-            if (targetTemp <= 0 || turnsLeft === 0) {
-                endGame();
+            updateDeductionDisplay();
+            renderDeductionHistory(); 
+
+            if (deductionTargetTemp <= 0 || deductionTurnsLeft === 0) {
+                endDeductionGame();
             }
         }
 
-        function endGame() {
+        function endDeductionGame() {
             gameActive = false;
-            gameBoard.classList.add('hidden');
-            endScreen.classList.remove('hidden');
+            deductionGameBoard.classList.add('hidden');
+            deductionEndScreen.classList.remove('hidden');
+            deductionTurnResult.classList.add('hidden');
 
-            const score = targetTemp;
+            const score = deductionTargetTemp;
             
             if (score === 0) {
-                endTitle.textContent = "🏆 PERFECTE SCORE! 🏆";
-                endTitle.className = "text-2xl font-bold mb-3 text-green-600";
-                endMessage.textContent = "Je hebt precies 0.0°C bereikt! Meesterlijke strategie!";
+                document.getElementById('deduction-end-title').textContent = "🏆 PERFECTE SCORE! 🏆";
+                document.getElementById('deduction-end-title').className = "text-4xl font-black mb-4 text-green-600";
+                document.getElementById('deduction-end-message').textContent = "Je hebt precies 0°C bereikt! Meesterlijke strategie!";
             } else if (score > 0) {
-                endTitle.textContent = "Einde Spel!";
-                endTitle.className = "text-2xl font-bold mb-3 text-yellow-700";
-                endMessage.textContent = `De beurten zijn op. Je hebt nog ${score.toFixed(1)}°C over. Score: ${score.toFixed(1)} punten.`;
-            } else { // score < 0
-                endTitle.textContent = "🚨 Over De Schreef! 🚨";
-                endTitle.className = "text-2xl font-bold mb-3 text-red-600";
-                endMessage.textContent = `Je bent onder nul geëindigd met ${score.toFixed(1)}°C. Probeer de volgende keer conservatiever te zijn.`;
+                document.getElementById('deduction-end-title').textContent = "Einde Spel!";
+                document.getElementById('deduction-end-title').className = "text-4xl font-black mb-4 text-yellow-700";
+                document.getElementById('deduction-end-message').textContent = `De beurten zijn op. Je bent geëindigd met ${score.toFixed(0)}°C over. Score: ${score.toFixed(0)} punten.`;
+            } else {
+                document.getElementById('deduction-end-title').textContent = "🚨 Over De Schreef! 🚨";
+                document.getElementById('deduction-end-title').className = "text-4xl font-black mb-4 text-red-600";
+                document.getElementById('deduction-end-message').textContent = `Je hebt onder nul geëindigd met ${score.toFixed(0)}°C. Probeer de volgende keer beter in te schatten.`;
             }
         }
 
-        // --- Event Listeners ---
-        submitButton.addEventListener('click', handleTurn);
-        cityInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleTurn();
+        // **********************************************
+        // ********** GUESSING GAME LOGIC ***************
+        // **********************************************
+
+        function updateGuessingDisplay() {
+            guessingTurnsDisplay.textContent = `${guessingTurnsLeft}/${GUESSING_MAX_TURNS}`;
+            // Toon het geheime nummer alleen als het spel voorbij is
+            guessingTargetDisplay.textContent = gameActive ? "??" : `${guessingSecretNumber}°C`;
+            guessingTargetDisplay.classList.remove('text-green-600');
+        }
+
+        function renderGuessingHistory() {
+            guessingHistoryLog.innerHTML = ''; 
+            if (guessingTurnHistory.length === 0) {
+                guessingHistoryPlaceholder.classList.remove('hidden');
+                return;
             }
-        });
+            guessingHistoryPlaceholder.classList.add('hidden');
+
+            guessingTurnHistory.slice().reverse().forEach((turn, index) => {
+                const listItem = document.createElement('li');
+                listItem.className = 'text-gray-700 text-sm flex justify-between items-center p-2 rounded-lg transition duration-100 bg-gray-50 hover:bg-gray-100 border-l-4 ' + turn.color;
+                
+                listItem.innerHTML = `
+                    <span class="font-bold text-gray-700 mr-2">Gok ${GUESSING_MAX_TURNS - guessingTurnsLeft - index}:</span>
+                    <span>${turn.name} (${turn.country}): </span>
+                    <span class="font-black ${turn.textColor}">${turn.guess}°C (${turn.feedback})</span>
+                `;
+                guessingHistoryLog.appendChild(listItem);
+            });
+        }
+        
+        function initializeGuessingGame() {
+            guessingSecretNumber = Math.floor(Math.random() * (GUESSING_MAX_TARGET - GUESSING_MIN_TARGET + 1)) + GUESSING_MIN_TARGET;
+            guessingTurnsLeft = GUESSING_MAX_TURNS;
+            gameActive = true;
+            guessingTurnHistory = []; 
+            guessingSelectedLocation = null; 
+            
+            guessingLocationLabel.textContent = 'Klik op de kaart om een locatie te kiezen.';
+            guessingSubmitButton.disabled = true; 
+            guessingSubmitButton.textContent = "Controleer Temperatuur";
+
+            updateGuessingDisplay(); 
+            renderGuessingHistory(); 
+
+            guessingGameBoard.classList.remove('hidden'); 
+            guessingEndScreen.classList.add('hidden');
+
+            // Kaart initialiseren en event listener toevoegen
+            guessingMapCanvas.width = guessingMapCanvas.offsetWidth;
+            guessingMapCanvas.height = guessingMapCanvas.offsetWidth / 2;
+            drawMap(guessingMapCanvas);
+            guessingMapCanvas.onclick = (e) => handleMapClick(e, 'guessing');
+        }
+
+        async function handleGuessingTurn() {
+            if (!gameActive || guessingTurnsLeft === 0 || !guessingSelectedLocation) return;
+            
+            const { lat, lon } = guessingSelectedLocation;
+
+            // 1. Haal temperatuur op
+            const temperature = await fetchTemperature(guessingSelectedLocation, guessingTurnResult);
+            
+            if (temperature === null) {
+                guessingSubmitButton.disabled = true; 
+                return; 
+            }
+
+            // 2. Haal naam op voor geschiedenis
+            const geoInfo = await reverseGeocode(lat, lon);
+
+            const guess = temperature;
+            let feedback = '';
+            let color = 'border-red-500';
+            let textColor = 'text-red-600';
+            
+            if (guess === guessingSecretNumber) {
+                feedback = 'GEWONNEN!';
+                color = 'border-green-500';
+                textColor = 'text-green-600';
+                gameActive = false;
+            } else if (guess < guessingSecretNumber) {
+                feedback = 'HOGER';
+                color = 'border-yellow-500';
+                textColor = 'text-yellow-600';
+            } else {
+                feedback = 'LAGER';
+                color = 'border-blue-500';
+                textColor = 'text-blue-600';
+            }
+
+            guessingTurnsLeft--; 
+
+            guessingTurnHistory.push({ 
+                name: geoInfo.name, country: geoInfo.country, 
+                guess: guess, feedback: feedback, color: color, textColor: textColor,
+                lat: lat, lon: lon
+            });
+            
+            guessingTurnResult.innerHTML = `
+                <p class="text-sm text-gray-700 font-medium">Temperatuur van ${geoInfo.name}: <span class="font-bold ${textColor}">${guess}°C</span></p>
+                <p class="text-sm text-gray-700 mt-1">Feedback: Het geheime getal is <span class="font-bold text-lg ${textColor}">${feedback}</span>.</p>
+            `;
+            
+            // UI en status reset
+            guessingSelectedLocation = null; 
+            guessingSubmitButton.disabled = true; 
+            guessingLocationLabel.textContent = 'Klik op de kaart om een locatie te kiezen.';
+            drawMap(guessingMapCanvas); // Kaart resetten
+
+            updateGuessingDisplay();
+            renderGuessingHistory(); 
+
+            if (!gameActive || guessingTurnsLeft === 0) {
+                endGuessingGame(guess === guessingSecretNumber);
+            }
+        }
+
+        function endGuessingGame(won) {
+            gameActive = false;
+            guessingGameBoard.classList.add('hidden');
+            guessingEndScreen.classList.remove('hidden');
+            guessingTurnResult.classList.add('hidden');
+
+            const titleElement = document.getElementById('guessing-end-title');
+            const messageElement = document.getElementById('guessing-end-message');
+            
+            if (won) {
+                titleElement.textContent = "🥳 GEVONDEN! 🥳";
+                titleElement.className = "text-4xl font-black mb-4 text-green-600";
+                messageElement.textContent = `Je hebt het geheime nummer (${guessingSecretNumber}) geraden in ${GUESSING_MAX_TURNS - guessingTurnsLeft} gokken!`;
+            } else {
+                titleElement.textContent = "❌ GAME OVER ❌";
+                titleElement.className = "text-4xl font-black mb-4 text-red-600";
+                messageElement.textContent = `Je beurten zijn op. Het geheime nummer was ${guessingSecretNumber}.`;
+            }
+            
+            // Toon het geheime nummer in het scorepaneel
+            guessingTargetDisplay.textContent = `${guessingSecretNumber}°C`;
+            if (won) guessingTargetDisplay.classList.add('text-green-600');
+        }
+
+        // --- Event Listeners Init ---
+        
+        // Deduction Game Listeners
+        deductionSubmitButton.addEventListener('click', handleDeductionTurn);
+        
+        // Guessing Game Listeners
+        guessingSubmitButton.addEventListener('click', handleGuessingTurn);
 
         // Start de initiële API-controle bij het laden van de pagina
-        window.onload = checkApiAndStart;
+        window.onload = checkApiStatus;
 
     </script>
 </body>
