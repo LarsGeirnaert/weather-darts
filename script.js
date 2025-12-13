@@ -6,7 +6,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// !!! ⚠️ VERVANG DIT BLOK MET JOUW EIGEN CONFIG CODE (VAN STAP 2) !!!
+// !!! JOUW FIREBASE CONFIG !!!
 const firebaseConfig = {
   apiKey: "AIzaSyDm-OaKbBgCC4WazbyGq5WJ-USqQkFTzsY",
   authDomain: "weather-duel-cf13e.firebaseapp.com",
@@ -16,7 +16,7 @@ const firebaseConfig = {
   appId: "1:1066877072806:web:068b650d5a5b62872c4b67",
   databaseURL: "https://weather-duel-cf13e-default-rtdb.europe-west1.firebasedatabase.app"
 };
-// !!! ⚠️ EINDE CONFIG BLOK !!!
+// !!! EINDE CONFIG BLOK !!!
 
 // Start de verbinding met de database
 const app = initializeApp(firebaseConfig);
@@ -78,19 +78,15 @@ const statusMessage = document.getElementById('status-message');
 // **********************************************
 // ********** 2. MODULE EXPORTS *****************
 // **********************************************
-// Omdat dit bestand nu een 'module' is, moeten we functies die de HTML
-// aanroept (via onclick="...") handmatig aan het window koppelen.
-
 window.showView = showView;
 window.checkApiAndStart = checkApiAndStart;
-window.handleDeductionTurn = handleDeductionTurn; // Wordt via JS gekoppeld, maar voor zekerheid
+window.handleDeductionTurn = handleDeductionTurn;
 
 
 // **********************************************
 // ********** 3. API & HELPER FUNCTIES **********
 // **********************************************
 
-// Automatische Landnamen Vertaler
 const regionNames = new Intl.DisplayNames(['nl'], { type: 'region' });
 
 function getCountryName(code) {
@@ -577,7 +573,6 @@ function initDuelLobby() {
     const joinBtn = document.getElementById('join-room-btn');
     const input = document.getElementById('room-code-input');
 
-    // Remove old listeners to prevent doubles
     const newCreate = createBtn.cloneNode(true);
     const newJoin = joinBtn.cloneNode(true);
     createBtn.parentNode.replaceChild(newCreate, createBtn);
@@ -597,13 +592,15 @@ function initDuelLobby() {
 function createRoom(roomId) {
     currentRoomId = roomId;
     playerRole = 'host';
-    const initialTarget = Math.floor(Math.random() * 35) - 5; // -5 tot 30 graden
+    const initialTarget = Math.floor(Math.random() * 35) - 5; 
 
     set(ref(db, 'rooms/' + roomId), {
         targetTemp: initialTarget,
+        scores: { host: 100, guest: 100 },
+        round: 1,
+        calculated: false, 
         host: { status: 'waiting' },
-        guest: { status: 'empty' },
-        round: 1
+        guest: { status: 'empty' }
     });
 
     waitForGameStart();
@@ -625,32 +622,49 @@ function waitForGameStart() {
     document.getElementById('duel-board').classList.remove('hidden');
     document.getElementById('room-code-display').textContent = currentRoomId;
 
-    // Luister naar veranderingen in de database
+    // Luister naar veranderingen
     onValue(ref(db, 'rooms/' + currentRoomId), (snapshot) => {
         const data = snapshot.val();
-        if (!data) return; // Kamer bestaat niet
+        if (!data) return; 
 
-        // Update Target Temp
+        // 1. Update UI (Doel, Scores, Ronde)
         document.getElementById('duel-target-display').textContent = `${data.targetTemp}°C`;
+        document.getElementById('round-display').textContent = data.round;
+        
+        // Scores updaten
+        if (data.scores) {
+            const myScore = playerRole === 'host' ? data.scores.host : data.scores.guest;
+            const oppScore = playerRole === 'host' ? data.scores.guest : data.scores.host;
+            document.getElementById('my-score').textContent = Math.round(myScore);
+            document.getElementById('opp-score').textContent = Math.round(oppScore);
+        }
 
-        // Check of we resultaten moeten tonen
-        if (data.host.guess && data.guest.guess && data.host.temp !== undefined && data.guest.temp !== undefined) {
+        // 2. Host berekent punten als beide klaar zijn
+        if (playerRole === 'host' && 
+            data.host.guess && data.guest.guess && 
+            data.host.temp !== undefined && data.guest.temp !== undefined &&
+            !data.calculated) {
+            
+            calculateAndSaveScores(data);
+        }
+
+        // 3. Toon resultaten als 'calculated' true is
+        if (data.calculated) {
              showDuelResults(data);
         } else {
-             // Reset UI voor nieuwe ronde als data weg is
+             // Reset UI voor nieuwe ronde
              document.getElementById('duel-result').classList.add('hidden');
              document.getElementById('duel-waiting-msg').classList.add('hidden');
              document.getElementById('duel-submit-btn').classList.remove('hidden');
              document.getElementById('duel-city-input').disabled = false;
+             if(!duelCityData) document.getElementById('duel-city-input').value = '';
         }
     });
     
-    // Setup input en knop
     const input = document.getElementById('duel-city-input');
     const btn = document.getElementById('duel-submit-btn');
     const nextBtn = document.getElementById('next-round-btn');
 
-    // Clean listeners
     const newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
     const newNext = nextBtn.cloneNode(true);
@@ -660,6 +674,34 @@ function waitForGameStart() {
     newNext.onclick = startNextRound;
 }
 
+// Functie voor de Host om scores te berekenen en op te slaan
+function calculateAndSaveScores(data) {
+    const target = data.targetTemp;
+    const hostDiff = Math.abs(target - data.host.temp);
+    const guestDiff = Math.abs(target - data.guest.temp);
+    const round = data.round;
+
+    let newScores = { ...data.scores };
+    
+    // Formule: (|VerliezerFout| - |WinnaarFout|) * Ronde
+    if (hostDiff < guestDiff) {
+        // Host wint, gast verliest punten
+        const damage = (guestDiff - hostDiff) * round;
+        newScores.guest -= damage;
+    } else if (guestDiff < hostDiff) {
+        // Gast wint, host verliest punten
+        const damage = (hostDiff - guestDiff) * round;
+        newScores.host -= damage;
+    }
+    // Bij gelijkspel (hostDiff == guestDiff) gebeurt er niks
+
+    // Update DB
+    update(ref(db, 'rooms/' + currentRoomId), {
+        scores: newScores,
+        calculated: true
+    });
+}
+
 async function submitDuelGuess() {
     if (!duelCityData) return;
     
@@ -667,11 +709,9 @@ async function submitDuelGuess() {
     document.getElementById('duel-waiting-msg').classList.remove('hidden');
     document.getElementById('duel-city-input').disabled = true;
 
-    // Haal temp op (geen resultDiv nodig)
     const temp = await fetchTemperature(duelCityData, null);
 
     if (temp !== null) {
-        // Stuur naar Firebase
         update(ref(db, `rooms/${currentRoomId}/${playerRole}`), {
             guess: duelCityData.name,
             temp: temp
@@ -683,10 +723,13 @@ function showDuelResults(data) {
     const myData = playerRole === 'host' ? data.host : data.guest;
     const oppData = playerRole === 'host' ? data.guest : data.host;
     const target = data.targetTemp;
+    const round = data.round;
 
     const myDiff = Math.abs(target - myData.temp);
     const oppDiff = Math.abs(target - oppData.temp);
 
+    // Vul resultaten in
+    document.getElementById('result-round-num').textContent = round;
     document.getElementById('p1-result-city').textContent = myData.guess;
     document.getElementById('p1-result-temp').textContent = `${myData.temp}°C`;
     document.getElementById('p1-diff').textContent = `Afwijking: ${myDiff}`;
@@ -695,32 +738,54 @@ function showDuelResults(data) {
     document.getElementById('p2-result-temp').textContent = `${oppData.temp}°C`;
     document.getElementById('p2-diff').textContent = `Afwijking: ${oppDiff}`;
 
+    // Schade uitleg en banner
     const banner = document.getElementById('winner-banner');
+    const explanation = document.getElementById('damage-explanation');
+    
+    // Bereken schade puur voor de tekst (de echte score staat al in DB)
+    const baseDamage = Math.abs(myDiff - oppDiff);
+    const totalDamage = baseDamage * round;
+
     if (myDiff < oppDiff) {
         banner.textContent = "🏆 JIJ WINT!";
         banner.className = "text-xl font-black text-green-600 mb-4";
+        explanation.textContent = `Tegenstander zat er ${baseDamage} verder naast.\n${baseDamage} x Ronde ${round} = -${totalDamage} pnt voor hem!`;
     } else if (oppDiff < myDiff) {
         banner.textContent = "😢 VERLOREN...";
         banner.className = "text-xl font-black text-red-600 mb-4";
+        explanation.textContent = `Jij zat er ${baseDamage} verder naast.\n${baseDamage} x Ronde ${round} = -${totalDamage} pnt voor jou!`;
     } else {
         banner.textContent = "🤝 GELIJKSPEL!";
         banner.className = "text-xl font-black text-blue-600 mb-4";
+        explanation.textContent = "Gelijke afwijking. Niemand verliest punten.";
     }
 
     document.getElementById('duel-result').classList.remove('hidden');
 }
 
 function startNextRound() {
+    // Alleen de host mag de ronde verhogen en resetten
     if (playerRole === 'host') {
-        const newTarget = Math.floor(Math.random() * 35) - 5;
-        update(ref(db, `rooms/${currentRoomId}`), {
-            targetTemp: newTarget,
-            host: { status: 'playing', guess: null, temp: null }, // Reset
-            guest: { status: 'playing', guess: null, temp: null } // Reset
-        });
+        // Haal huidige data op om ronde te verhogen
+        onValue(ref(db, `rooms/${currentRoomId}/round`), (snapshot) => {
+            const currentRound = snapshot.val();
+            const newTarget = Math.floor(Math.random() * 35) - 5;
+            
+            update(ref(db, `rooms/${currentRoomId}`), {
+                targetTemp: newTarget,
+                round: currentRound + 1,
+                calculated: false, // Reset voor volgende keer
+                host: { status: 'playing', guess: null, temp: null },
+                guest: { status: 'playing', guess: null, temp: null }
+            });
+        }, { onlyOnce: true });
+        
+        document.getElementById('duel-city-input').value = '';
+        duelCityData = null;
     } else {
-        // Gast reset alleen zijn eigen status, host doet de rest
         document.getElementById('winner-banner').textContent = "Wachten op host...";
+        document.getElementById('duel-city-input').value = '';
+        duelCityData = null;
     }
 }
 
