@@ -1,4 +1,28 @@
 // **********************************************
+// ********** 0. FIREBASE SETUP *****************
+// **********************************************
+
+// Importeer de functies van Google's servers
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+// !!! ⚠️ VERVANG DIT BLOK MET JOUW EIGEN CONFIG CODE (VAN STAP 2) !!!
+const firebaseConfig = {
+  apiKey: "AIzaSyDm-OaKbBgCC4WazbyGq5WJ-USqQkFTzsY",
+  authDomain: "weather-duel-cf13e.firebaseapp.com",
+  projectId: "weather-duel-cf13e",
+  storageBucket: "weather-duel-cf13e.firebasestorage.app",
+  messagingSenderId: "1066877072806",
+  appId: "1:1066877072806:web:068b650d5a5b62872c4b67"
+};
+// !!! ⚠️ EINDE CONFIG BLOK !!!
+
+// Start de verbinding met de database
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+
+// **********************************************
 // ********** 1. CONFIGURATIE & STATUS **********
 // **********************************************
 
@@ -18,8 +42,8 @@ const GUESSING_MAX_TARGET = 30;
 const DEBOUNCE_DELAY = 300;
 
 // --- Globale Status ---
-let currentGameType = ''; 
-let currentInputMode = ''; 
+let currentGameType = '';
+let currentInputMode = '';
 let gameActive = false;
 let debounceTimer;
 
@@ -35,17 +59,34 @@ let guessingTurnsLeft = GUESSING_MAX_TURNS;
 let guessingTurnHistory = [];
 let guessingSelectedCityData = null;
 
+// State Spel 3 (Duel)
+let currentRoomId = null;
+let playerRole = null; // 'host' of 'guest'
+let duelCityData = null;
+
 // Kaart variabelen
-let mapInstances = {}; 
-let mapMarkers = {};   
+let mapInstances = {};
+let mapMarkers = {};
 
 // --- DOM Elementen ---
 const mainMenu = document.getElementById('main-menu');
 const gameContainer = document.getElementById('game-container');
 const statusMessage = document.getElementById('status-message');
 
+
 // **********************************************
-// ********** 2. API & HELPER FUNCTIES **********
+// ********** 2. MODULE EXPORTS *****************
+// **********************************************
+// Omdat dit bestand nu een 'module' is, moeten we functies die de HTML
+// aanroept (via onclick="...") handmatig aan het window koppelen.
+
+window.showView = showView;
+window.checkApiAndStart = checkApiAndStart;
+window.handleDeductionTurn = handleDeductionTurn; // Wordt via JS gekoppeld, maar voor zekerheid
+
+
+// **********************************************
+// ********** 3. API & HELPER FUNCTIES **********
 // **********************************************
 
 // Automatische Landnamen Vertaler
@@ -55,7 +96,7 @@ function getCountryName(code) {
     try {
         return regionNames.of(code);
     } catch (e) {
-        return code; 
+        return code;
     }
 }
 
@@ -74,7 +115,6 @@ async function testApiConnection() {
     } catch { return false; }
 }
 
-// *** AANGEPASTE FUNCTIE: NU MAX TEMPERATUUR ***
 async function fetchTemperature(cityData, resultElement) {
     const forecastParams = new URLSearchParams({ lat: cityData.lat, lon: cityData.lon, appid: API_KEY, units: 'metric' }).toString();
     try {
@@ -82,18 +122,12 @@ async function fetchTemperature(cityData, resultElement) {
         const data = await response.json();
         if (response.status !== 200) throw new Error("API Fout");
 
-        // We zoeken de datum van de eerste meting (vandaag)
         const todayDate = data.list[0].dt_txt.slice(0, 10);
-        
-        let maxTemp = -Infinity; // Start extreem laag
+        let maxTemp = -Infinity;
         let found = false;
 
-        // Loop door de voorspellingen
         for (const item of data.list) {
-            // Als de datum overeenkomt met vandaag
             if (item.dt_txt.startsWith(todayDate)) {
-                // Is deze temperatuur hoger dan wat we tot nu toe hebben?
-                // Gebruik temp_max voor de zekerheid, al zijn temp en temp_max in de forecast vaak gelijk
                 if (item.main.temp_max > maxTemp) {
                     maxTemp = item.main.temp_max;
                 }
@@ -101,19 +135,18 @@ async function fetchTemperature(cityData, resultElement) {
             }
         }
 
-        // Als er geen data voor vandaag is gevonden (zou niet moeten gebeuren), return null
         if (!found) return null;
-
-        // Return de hoogste temperatuur, afgerond
         return Math.round(maxTemp);
 
     } catch (error) {
-        resultElement.innerHTML = `<span class="text-red-500">❌ Fout bij ophalen weergegevens.</span>`;
+        if(resultElement) {
+            resultElement.innerHTML = `<span class="text-red-500">❌ Fout bij ophalen weergegevens.</span>`;
+        }
         return null;
     }
 }
 
-// --- Autocomplete (Tekst Modus) ---
+// --- Autocomplete ---
 async function fetchCitySuggestions(query, callback) {
     const params = new URLSearchParams({ q: query, limit: 2, appid: API_KEY }).toString();
     try {
@@ -135,7 +168,7 @@ function renderSuggestions(cities, container, submitButton, setCityData) {
         seen.add(key);
 
         const div = document.createElement('div');
-        const country = getCountryName(city.country); 
+        const country = getCountryName(city.country);
         const displayName = `${city.name}, ${country}`;
         div.textContent = displayName;
         div.className = 'suggestion-item';
@@ -160,12 +193,18 @@ function handleCityInput(event, gameType) {
         btn = document.getElementById('deduction-submit-button');
         callback = (c) => renderSuggestions(c, container, btn, (city) => deductionSelectedCityData = city);
         setter = (c) => deductionSelectedCityData = c;
-    } else {
+    } else if (gameType === 'guessing') {
         input = document.getElementById('guessing-city-input');
         container = document.getElementById('guessing-suggestions');
         btn = document.getElementById('guessing-submit-button');
         callback = (c) => renderSuggestions(c, container, btn, (city) => guessingSelectedCityData = city);
         setter = (c) => guessingSelectedCityData = c;
+    } else if (gameType === 'duel') {
+        input = document.getElementById('duel-city-input');
+        container = document.getElementById('duel-suggestions');
+        btn = document.getElementById('duel-submit-btn');
+        callback = (c) => renderSuggestions(c, container, btn, (city) => duelCityData = city);
+        setter = (c) => duelCityData = c;
     }
 
     const query = event.target.value.trim();
@@ -177,14 +216,14 @@ function handleCityInput(event, gameType) {
 }
 
 // **********************************************
-// ********** 3. KAART LOGICA (LEAFLET) *********
+// ********** 4. KAART LOGICA (LEAFLET) *********
 // **********************************************
 
 function initMap(gameType) {
     const mapId = gameType === 'deduction' ? 'deduction-map' : 'guessing-map';
-    
+
     if (mapInstances[gameType]) {
-        mapInstances[gameType].invalidateSize(); 
+        mapInstances[gameType].invalidateSize();
         return;
     }
 
@@ -215,18 +254,18 @@ async function onMapClick(e, gameType) {
     document.getElementById(btnId).disabled = true;
 
     const params = new URLSearchParams({ lat: lat, lon: lon, limit: 1, appid: API_KEY }).toString();
-    
+
     try {
         const response = await fetch(`${REVERSE_GEO_API_URL}?${params}`);
         const data = await response.json();
 
         if (data && data.length > 0) {
             const place = data[0];
-            const country = getCountryName(place.country); 
+            const country = getCountryName(place.country);
             const cityData = { name: place.name, country: country, lat: place.lat, lon: place.lon };
 
             document.getElementById(inputId).value = `${place.name}, ${country}`;
-            
+
             if (gameType === 'deduction') {
                 deductionSelectedCityData = cityData;
             } else {
@@ -243,7 +282,7 @@ async function onMapClick(e, gameType) {
 }
 
 // **********************************************
-// ********** 4. SPEL 1: DEDUCTIE LOGICA ********
+// ********** 5. SPEL 1: DEDUCTIE ***************
 // **********************************************
 
 function initializeDeductionGame() {
@@ -261,17 +300,17 @@ function initializeDeductionGame() {
     input.value = '';
     btn.disabled = true;
     btn.textContent = "Trek Temperatuur Af";
-    
+
     if (currentInputMode === 'map') {
         modeDisplay.textContent = "Modus: Landkaart";
-        mapContainer.classList.remove('hidden'); 
-        input.readOnly = true; 
+        mapContainer.classList.remove('hidden');
+        input.readOnly = true;
         input.placeholder = "Klik op de kaart om een stad te kiezen...";
         setTimeout(() => initMap('deduction'), 100);
     } else {
         modeDisplay.textContent = "Modus: Typen";
-        mapContainer.classList.add('hidden'); 
-        input.readOnly = false; 
+        mapContainer.classList.add('hidden');
+        input.readOnly = false;
         input.placeholder = "Typ een stad (bv. Parijs)...";
     }
 
@@ -287,19 +326,12 @@ async function handleDeductionTurn() {
     const cityData = deductionSelectedCityData;
     const resultDiv = document.getElementById('deduction-turn-result');
 
-    // ** Check op uniek land **
     if (deductionTurnHistory.some(t => t.country === cityData.country)) {
         resultDiv.innerHTML = `<span class="text-red-600 font-bold">❌ Je hebt al een stad in ${cityData.country} gekozen! Kies een ander land.</span>`;
         resultDiv.classList.remove('hidden');
-        
         deductionSelectedCityData = null;
         document.getElementById('deduction-city-input').value = '';
         document.getElementById('deduction-submit-button').disabled = true;
-        
-        if (mapMarkers['deduction'] && mapInstances['deduction']) {
-            mapInstances['deduction'].removeLayer(mapMarkers['deduction']);
-            mapMarkers['deduction'] = null;
-        }
         return;
     }
 
@@ -326,7 +358,7 @@ async function handleDeductionTurn() {
     deductionSelectedCityData = null;
     document.getElementById('deduction-city-input').value = '';
     document.getElementById('deduction-submit-button').disabled = true;
-    
+
     if (mapMarkers['deduction'] && mapInstances['deduction']) {
         mapInstances['deduction'].removeLayer(mapMarkers['deduction']);
         mapMarkers['deduction'] = null;
@@ -361,7 +393,7 @@ function endDeductionGame() {
     document.getElementById('deduction-game-board').classList.add('hidden');
     document.getElementById('deduction-end-screen').classList.remove('hidden');
     document.getElementById('deduction-turn-result').classList.add('hidden');
-    
+
     const title = document.getElementById('deduction-end-title');
     const msg = document.getElementById('deduction-end-message');
     const score = deductionTargetTemp;
@@ -372,7 +404,7 @@ function endDeductionGame() {
 }
 
 // **********************************************
-// ********** 5. SPEL 2: RADEN LOGICA ***********
+// ********** 6. SPEL 2: RADEN ******************
 // **********************************************
 
 function initializeGuessingGame() {
@@ -416,19 +448,12 @@ async function handleGuessingTurn() {
     const cityData = guessingSelectedCityData;
     const resultDiv = document.getElementById('guessing-turn-result');
 
-    // ** Check op uniek land **
     if (guessingTurnHistory.some(t => t.country === cityData.country)) {
         resultDiv.innerHTML = `<span class="text-red-600 font-bold">❌ Je hebt al een stad in ${cityData.country} gekozen! Kies een ander land.</span>`;
         resultDiv.classList.remove('hidden');
-        
         guessingSelectedCityData = null;
         document.getElementById('guessing-city-input').value = '';
         document.getElementById('guessing-submit-button').disabled = true;
-
-        if (mapMarkers['guessing'] && mapInstances['guessing']) {
-            mapInstances['guessing'].removeLayer(mapMarkers['guessing']);
-            mapMarkers['guessing'] = null;
-        }
         return;
     }
 
@@ -496,20 +521,17 @@ function endGuessingGame(won) {
     const msg = document.getElementById('guessing-end-message');
     const summaryList = document.getElementById('guessing-summary-list');
 
-    // 1. Titel en Bericht
-    if (won) { 
-        title.textContent = "🥳 GEVONDEN!"; 
-        title.className = "text-4xl font-black mb-2 text-green-600"; 
-        msg.textContent = `Het geheime getal was inderdaad ${guessingSecretNumber}°C!`; 
-    } else { 
-        title.textContent = "HELAAS!"; 
-        title.className = "text-4xl font-black mb-2 text-red-600"; 
-        msg.textContent = `Je beurten zijn op. Het getal was ${guessingSecretNumber}°C.`; 
+    if (won) {
+        title.textContent = "🥳 GEVONDEN!";
+        title.className = "text-4xl font-black mb-2 text-green-600";
+        msg.textContent = `Het geheime getal was inderdaad ${guessingSecretNumber}°C!`;
+    } else {
+        title.textContent = "HELAAS!";
+        title.className = "text-4xl font-black mb-2 text-red-600";
+        msg.textContent = `Je beurten zijn op. Het getal was ${guessingSecretNumber}°C.`;
     }
 
-    // 2. Samenvatting genereren
-    summaryList.innerHTML = ''; 
-
+    summaryList.innerHTML = '';
     guessingTurnHistory.forEach((turn, index) => {
         const li = document.createElement('li');
         let icon = '➖';
@@ -546,7 +568,164 @@ function endGuessingGame(won) {
 }
 
 // **********************************************
-// ********** 6. NAVIGATIE & INIT ***************
+// ********** 7. SPEL 3: DUEL LOGICA ************
+// **********************************************
+
+function initDuelLobby() {
+    const createBtn = document.getElementById('create-room-btn');
+    const joinBtn = document.getElementById('join-room-btn');
+    const input = document.getElementById('room-code-input');
+
+    // Remove old listeners to prevent doubles
+    const newCreate = createBtn.cloneNode(true);
+    const newJoin = joinBtn.cloneNode(true);
+    createBtn.parentNode.replaceChild(newCreate, createBtn);
+    joinBtn.parentNode.replaceChild(newJoin, joinBtn);
+
+    newCreate.onclick = () => {
+        const roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
+        createRoom(roomId);
+    };
+
+    newJoin.onclick = () => {
+        const roomId = input.value.toUpperCase().trim();
+        if(roomId.length === 4) joinRoom(roomId);
+    };
+}
+
+function createRoom(roomId) {
+    currentRoomId = roomId;
+    playerRole = 'host';
+    const initialTarget = Math.floor(Math.random() * 35) - 5; // -5 tot 30 graden
+
+    set(ref(db, 'rooms/' + roomId), {
+        targetTemp: initialTarget,
+        host: { status: 'waiting' },
+        guest: { status: 'empty' },
+        round: 1
+    });
+
+    waitForGameStart();
+}
+
+function joinRoom(roomId) {
+    currentRoomId = roomId;
+    playerRole = 'guest';
+    
+    update(ref(db, 'rooms/' + roomId + '/guest'), {
+        status: 'joined'
+    });
+
+    waitForGameStart();
+}
+
+function waitForGameStart() {
+    document.getElementById('duel-lobby').classList.add('hidden');
+    document.getElementById('duel-board').classList.remove('hidden');
+    document.getElementById('room-code-display').textContent = currentRoomId;
+
+    // Luister naar veranderingen in de database
+    onValue(ref(db, 'rooms/' + currentRoomId), (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return; // Kamer bestaat niet
+
+        // Update Target Temp
+        document.getElementById('duel-target-display').textContent = `${data.targetTemp}°C`;
+
+        // Check of we resultaten moeten tonen
+        if (data.host.guess && data.guest.guess && data.host.temp !== undefined && data.guest.temp !== undefined) {
+             showDuelResults(data);
+        } else {
+             // Reset UI voor nieuwe ronde als data weg is
+             document.getElementById('duel-result').classList.add('hidden');
+             document.getElementById('duel-waiting-msg').classList.add('hidden');
+             document.getElementById('duel-submit-btn').classList.remove('hidden');
+             document.getElementById('duel-city-input').disabled = false;
+        }
+    });
+    
+    // Setup input en knop
+    const input = document.getElementById('duel-city-input');
+    const btn = document.getElementById('duel-submit-btn');
+    const nextBtn = document.getElementById('next-round-btn');
+
+    // Clean listeners
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    const newNext = nextBtn.cloneNode(true);
+    nextBtn.parentNode.replaceChild(newNext, nextBtn);
+    
+    newBtn.onclick = submitDuelGuess;
+    newNext.onclick = startNextRound;
+}
+
+async function submitDuelGuess() {
+    if (!duelCityData) return;
+    
+    document.getElementById('duel-submit-btn').classList.add('hidden');
+    document.getElementById('duel-waiting-msg').classList.remove('hidden');
+    document.getElementById('duel-city-input').disabled = true;
+
+    // Haal temp op (geen resultDiv nodig)
+    const temp = await fetchTemperature(duelCityData, null);
+
+    if (temp !== null) {
+        // Stuur naar Firebase
+        update(ref(db, `rooms/${currentRoomId}/${playerRole}`), {
+            guess: duelCityData.name,
+            temp: temp
+        });
+    }
+}
+
+function showDuelResults(data) {
+    const myData = playerRole === 'host' ? data.host : data.guest;
+    const oppData = playerRole === 'host' ? data.guest : data.host;
+    const target = data.targetTemp;
+
+    const myDiff = Math.abs(target - myData.temp);
+    const oppDiff = Math.abs(target - oppData.temp);
+
+    document.getElementById('p1-result-city').textContent = myData.guess;
+    document.getElementById('p1-result-temp').textContent = `${myData.temp}°C`;
+    document.getElementById('p1-diff').textContent = `Afwijking: ${myDiff}`;
+
+    document.getElementById('p2-result-city').textContent = oppData.guess;
+    document.getElementById('p2-result-temp').textContent = `${oppData.temp}°C`;
+    document.getElementById('p2-diff').textContent = `Afwijking: ${oppDiff}`;
+
+    const banner = document.getElementById('winner-banner');
+    if (myDiff < oppDiff) {
+        banner.textContent = "🏆 JIJ WINT!";
+        banner.className = "text-xl font-black text-green-600 mb-4";
+    } else if (oppDiff < myDiff) {
+        banner.textContent = "😢 VERLOREN...";
+        banner.className = "text-xl font-black text-red-600 mb-4";
+    } else {
+        banner.textContent = "🤝 GELIJKSPEL!";
+        banner.className = "text-xl font-black text-blue-600 mb-4";
+    }
+
+    document.getElementById('duel-result').classList.remove('hidden');
+}
+
+function startNextRound() {
+    if (playerRole === 'host') {
+        const newTarget = Math.floor(Math.random() * 35) - 5;
+        update(ref(db, `rooms/${currentRoomId}`), {
+            targetTemp: newTarget,
+            host: { status: 'playing', guess: null, temp: null }, // Reset
+            guest: { status: 'playing', guess: null, temp: null } // Reset
+        });
+    } else {
+        // Gast reset alleen zijn eigen status, host doet de rest
+        document.getElementById('winner-banner').textContent = "Wachten op host...";
+    }
+}
+
+
+// **********************************************
+// ********** 8. NAVIGATIE & INIT ***************
 // **********************************************
 
 function showView(view) {
@@ -554,6 +733,7 @@ function showView(view) {
     gameContainer.classList.add('hidden');
     document.getElementById('deduction-game').classList.add('hidden');
     document.getElementById('guessing-game').classList.add('hidden');
+    document.getElementById('duel-game').classList.add('hidden');
 
     if (view === 'menu') {
         mainMenu.classList.remove('hidden');
@@ -571,15 +751,18 @@ async function checkApiStatus() {
 async function checkApiAndStart(gameType, inputMode) {
     currentGameType = gameType;
     currentInputMode = inputMode;
-    
+
     if (await testApiConnection()) {
         showView('game');
         if (gameType === 'deduction') {
             document.getElementById('deduction-game').classList.remove('hidden');
             initializeDeductionGame();
-        } else {
+        } else if (gameType === 'guessing') {
             document.getElementById('guessing-game').classList.remove('hidden');
             initializeGuessingGame();
+        } else if (gameType === 'duel') {
+            document.getElementById('duel-game').classList.remove('hidden');
+            initDuelLobby();
         }
     }
 }
@@ -593,4 +776,7 @@ document.getElementById('guessing-submit-button').addEventListener('click', hand
 document.getElementById('guessing-city-input').addEventListener('input', (e) => handleCityInput(e, 'guessing'));
 document.getElementById('guessing-city-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleGuessingTurn(); });
 
-window.onload = checkApiStatus;
+document.getElementById('duel-city-input').addEventListener('input', (e) => handleCityInput(e, 'duel'));
+
+// Init check
+checkApiStatus();

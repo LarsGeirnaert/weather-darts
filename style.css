@@ -11,12 +11,12 @@ body {
 .container-card {
     background: linear-gradient(135deg, #ffffff 0%, #f7f9fa 100%);
     box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
-    max-width: 550px;
+    max-width: 800px; /* Iets breder voor multiplayer */
     border-radius: 1.5rem;
 }
 
 #main-menu {
-    max-width: 900px; /* Breder voor 3 kolommen */
+    max-width: 900px;
 }
 
 .button-primary {
@@ -68,11 +68,6 @@ body {
     border-bottom: none;
 }
 
-#history-log-container {
-    max-height: 250px;
-    overflow-y: auto;
-}
-
 .temp-icon {
     font-size: 3rem;
     line-height: 1;
@@ -82,15 +77,4 @@ body {
 .result-content {
     display: flex;
     align-items: center;
-}
-
-/* DUEL GAME SPECIFICS */
-.duel-card {
-    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
-}
-.duel-card:hover {
-    transform: translateY(-4px);
-}
-.duel-card:active {
-    transform: translateY(0);
 }
