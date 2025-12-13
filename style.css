@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #e0f2f7f1;
+    background-image: radial-gradient(#d1edf4 1px, transparent 1px), radial-gradient(#d1edf4 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: 0 0, 20px 20px;
+}
+
+.container-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f7f9fa 100%);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+    max-width: 550px;
+    border-radius: 1.5rem;
+}
+
+.button-primary {
+    background-color: #0d9488;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 6px #0f766e;
+    transform: translateY(0);
+}
+
+.button-primary:hover {
+    background-color: #0f766e;
+}
+
+.button-primary:active {
+    box-shadow: 0 2px #0f766e;
+    transform: translateY(4px);
+}
+
+.menu-button {
+    padding: 1.2rem 1.5rem;
+    border-radius: 0.75rem;
+    font-weight: 800;
+    transition: all 0.2s;
+    box-shadow: 0 8px #a855f7;
+    background-color: #c084fc;
+}
+
+.menu-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px #a855f7;
+}
+
+.score-panel {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+}
+
+.suggestion-item {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #e5e7eb;
+    transition: background-color 0.15s;
+}
+
+.suggestion-item:hover {
+    background-color: #f3f4f6;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+#history-log-container {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.temp-icon {
+    font-size: 3rem;
+    line-height: 1;
+    margin-right: 15px;
+}
+
+.result-content {
+    display: flex;
+    align-items: center;
+}

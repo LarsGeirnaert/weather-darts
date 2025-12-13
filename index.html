@@ -4,85 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Weer Spelletjes Hub</title>
-    <!-- Load Tailwind CSS voor snelle, responsieve styling -->
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Custom font voor een speelse look */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #e0f2f7f1; /* Lichtblauwe, koele achtergrond */
-            background-image: radial-gradient(#d1edf4 1px, transparent 1px), radial-gradient(#d1edf4 1px, transparent 1px);
-            background-size: 40px 40px;
-            background-position: 0 0, 20px 20px;
-        }
-        .container-card {
-            background: linear-gradient(135deg, #ffffff 0%, #f7f9fa 100%);
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
-            max-width: 550px;
-            border-radius: 1.5rem; /* Meer afgerond */
-        }
-        .button-primary {
-            background-color: #0d9488; /* Teal kleur, thematisch */
-            transition: all 0.2s ease-in-out;
-            box-shadow: 0 6px #0f766e;
-            transform: translateY(0);
-        }
-        .button-primary:hover {
-            background-color: #0f766e;
-        }
-        .button-primary:active {
-            box-shadow: 0 2px #0f766e;
-            transform: translateY(4px);
-        }
-        .menu-button {
-            padding: 1.2rem 1.5rem;
-            border-radius: 0.75rem;
-            font-weight: 800;
-            transition: all 0.2s;
-            box-shadow: 0 8px #a855f7; /* Paarse schaduw voor contrast */
-            background-color: #c084fc;
-        }
-        .menu-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px #a855f7;
-        }
-        .score-panel {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-        }
-        /* Stijl voor de suggestielijst */
-        .suggestion-item {
-            padding: 10px;
-            cursor: pointer;
-            border-bottom: 1px solid #e5e7eb;
-            transition: background-color 0.15s;
-        }
-        .suggestion-item:hover {
-            background-color: #f3f4f6;
-        }
-        .suggestion-item:last-child {
-            border-bottom: none;
-        }
-        /* Stijl voor de geschiedenis (scrollable) */
-        #history-log-container {
-            max-height: 250px;
-            overflow-y: auto;
-        }
-        /* Visuele feedback na de worp */
-        .temp-icon {
-            font-size: 3rem;
-            line-height: 1;
-            margin-right: 15px;
-        }
-        .result-content {
-            display: flex;
-            align-items: center;
-        }
-    </style>
+
+    <link rel="stylesheet" href="style.css">
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
 
-    <!-- MAIN MENU VIEW -->
     <div id="main-menu" class="container-card w-full p-8 rounded-3xl border border-gray-100 text-center">
         <h1 class="text-5xl font-black text-gray-900 mb-8 tracking-tight">
             Weer Spelletjes Hub
@@ -90,37 +18,32 @@
         <p class="text-xl text-gray-600 mb-10">Kies een spel om te starten:</p>
 
         <div class="space-y-6">
-            <!-- Game 1 Button -->
             <button id="startGameButton" onclick="checkApiAndStart('deduction')" class="menu-button w-full text-white disabled:bg-gray-400 disabled:shadow-none disabled:transform-none">
                 <span class="mr-2">🌡️</span> 1. Temperatuur Aftrek Spel
             </button>
-            <!-- Game 2 Button -->
             <button id="startGameGuessButton" onclick="checkApiAndStart('guessing')" class="menu-button w-full text-white disabled:bg-gray-400 disabled:shadow-none disabled:transform-none">
                 <span class="mr-2">🎲</span> 2. Temperatuur Raden
             </button>
         </div>
 
-        <!-- API Status / Laadindicator -->
         <div id="status-message" class="text-center p-3 mt-10 rounded-lg font-semibold bg-gray-100 text-gray-600">
             Initialiseren...
         </div>
     </div>
 
-    <!-- GAME VIEW - CONTAINER FOR BOTH GAMES -->
     <div id="game-container" class="container-card w-full p-8 rounded-3xl border border-gray-100 hidden">
-        
+
         <button onclick="showView('menu')" class="mb-6 text-blue-600 hover:text-blue-800 font-bold flex items-center transition-colors">
             <span class="text-2xl mr-2">◀</span> Terug naar Hoofdmenu
         </button>
 
-        <!-- Game 1: Temperatuur Aftrek Spel -->
         <div id="deduction-game" class="hidden">
             <h1 class="text-4xl font-black text-center text-gray-900 mb-8">
                 Temperatuur Aftrek Spel
             </h1>
-            
+
             <div id="deduction-game-board" class="space-y-6 hidden">
-                
+
                 <div class="p-4 bg-amber-50 rounded-xl border-2 border-amber-300 text-center shadow-inner">
                     <p class="text-base font-medium text-amber-800 flex items-center justify-center">
                         <span class="mr-2 text-xl">🎯</span> DOEL: Eindig na 5 beurten zo dicht mogelijk bij 0°C.
@@ -130,7 +53,6 @@
                     </p>
                 </div>
 
-                <!-- Score Display -->
                 <div class="score-panel flex justify-between items-center p-6 text-white rounded-xl shadow-2xl transition duration-300">
                     <div>
                         <p class="text-lg font-medium opacity-80">Nog af te trekken:</p>
@@ -142,39 +64,32 @@
                     </div>
                 </div>
 
-                <!-- Input Form met Suggesties -->
                 <div class="mt-6 space-y-4 relative">
                     <input type="text" id="deduction-city-input" placeholder="Voer een stad in (bv. Parijs, New York)" class="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 shadow-inner">
-                    
-                    <!-- Suggestie Container -->
+
                     <div id="deduction-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden">
-                        <!-- Suggesties worden hier dynamisch ingevoegd -->
-                    </div>
+                        </div>
 
                     <button id="deduction-submit-button" class="w-full button-primary text-white p-4 rounded-xl font-extrabold text-xl disabled:bg-gray-400 disabled:shadow-none disabled:transform-none" disabled>
                         Trek Temperatuur Af
                     </button>
                 </div>
 
-                <!-- Resultaat Beurt -->
                 <div id="deduction-turn-result" class="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-xl shadow-md hidden transition-all duration-300"></div>
-                
-                <!-- Geschiedenis Log -->
+
                 <div id="deduction-history-container" class="mt-8 pt-4 border-t border-gray-300">
                     <h3 class="text-lg font-bold text-gray-700 mb-3 flex items-center">
                         <span class="mr-2 text-xl">📜</span> Historie van Worpen:
                     </h3>
                     <div id="deduction-history-log-container" class="bg-white rounded-xl border border-gray-300 shadow-inner p-4">
                         <ul id="deduction-history-log" class="space-y-3">
-                            <!-- Geschiedenis items komen hier -->
-                        </ul>
+                            </ul>
                         <p id="deduction-history-placeholder" class="text-sm text-gray-500">Nog geen steden gekozen.</p>
                     </div>
                 </div>
 
             </div>
-            
-            <!-- Eindscherm -->
+
             <div id="deduction-end-screen" class="hidden text-center p-10 rounded-xl bg-white border-4 border-dashed border-gray-300">
                 <h2 id="deduction-end-title" class="text-4xl font-black mb-4"></h2>
                 <p id="deduction-end-message" class="text-xl mb-8 text-gray-700"></p>
@@ -183,15 +98,14 @@
                 </button>
             </div>
         </div>
-        
-        <!-- Game 2: Temperatuur Raden -->
+
         <div id="guessing-game" class="hidden">
             <h1 class="text-4xl font-black text-center text-gray-900 mb-8">
                 Temperatuur Raden
             </h1>
-            
+
             <div id="guessing-game-board" class="space-y-6 hidden">
-                
+
                 <div class="p-4 bg-teal-50 rounded-xl border-2 border-teal-300 text-center shadow-inner">
                     <p class="text-base font-medium text-teal-800 flex items-center justify-center">
                         <span class="mr-2 text-xl">❓</span> DOEL: Raad het geheime getal tussen 5 en 30 binnen 7 beurten.
@@ -201,7 +115,6 @@
                     </p>
                 </div>
 
-                <!-- Score Display -->
                 <div class="score-panel flex justify-between items-center p-6 text-white rounded-xl shadow-2xl transition duration-300">
                     <div>
                         <p class="text-lg font-medium opacity-80">Geheim Getal:</p>
@@ -213,39 +126,32 @@
                     </div>
                 </div>
 
-                <!-- Input Form met Suggesties -->
                 <div class="mt-6 space-y-4 relative">
                     <input type="text" id="guessing-city-input" placeholder="Voer een stad in (bv. Parijs, New York)" class="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 shadow-inner">
-                    
-                    <!-- Suggestie Container -->
+
                     <div id="guessing-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden">
-                        <!-- Suggesties worden hier dynamisch ingevoegd -->
-                    </div>
+                        </div>
 
                     <button id="guessing-submit-button" class="w-full button-primary text-white p-4 rounded-xl font-extrabold text-xl disabled:bg-gray-400 disabled:shadow-none disabled:transform-none" disabled>
                         Controleer Temperatuur
                     </button>
                 </div>
 
-                <!-- Resultaat Beurt -->
                 <div id="guessing-turn-result" class="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-xl shadow-md hidden transition-all duration-300"></div>
-                
-                <!-- Historie Raden -->
+
                 <div id="guessing-history-container" class="mt-8 pt-4 border-t border-gray-300">
                     <h3 class="text-lg font-bold text-gray-700 mb-3 flex items-center">
                         <span class="mr-2 text-xl">🧐</span> Eerdere Gokken:
                     </h3>
                     <div id="guessing-history-log-container" class="bg-white rounded-xl border border-gray-300 shadow-inner p-4">
                         <ul id="guessing-history-log" class="space-y-3">
-                            <!-- Geschiedenis items komen hier -->
-                        </ul>
+                            </ul>
                         <p id="guessing-history-placeholder" class="text-sm text-gray-500">Nog geen gokken gedaan.</p>
                     </div>
                 </div>
 
             </div>
-            
-            <!-- Eindscherm -->
+
             <div id="guessing-end-screen" class="hidden text-center p-10 rounded-xl bg-white border-4 border-dashed border-gray-300">
                 <h2 id="guessing-end-title" class="text-4xl font-black mb-4"></h2>
                 <p id="guessing-end-message" class="text-xl mb-8 text-gray-700"></p>
@@ -257,704 +163,6 @@
 
     </div>
 
-    <script>
-        // --- Configuratie & State ---
-        // Jouw API-sleutel. Let op: deze is openbaar zichtbaar in de browser.
-        const API_KEY = "b10dc274a5e56f6f6fc4fe68a7987217"; 
-        const GEO_API_URL = "https://api.openweathermap.org/geo/1.0/direct"; // Gebruiken voor stadsnaam -> LAT/LON
-        const FORECAST_API_URL = "https://api.openweathermap.org/data/2.5/forecast"; 
-
-        const DEDUCTION_MAX_TURNS = 5;
-        const DEDUCTION_MIN_TARGET = 25; // AANGEPAST: nieuwe ondergrens (van 70)
-        const DEDUCTION_MAX_TARGET = 125; // AANGEPAAST: nieuwe bovengrens (van 120)
-        
-        const GUESSING_MAX_TURNS = 7; 
-        const GUESSING_MIN_TARGET = 5; 
-        const GUESSING_MAX_TARGET = 30;
-        const DEBOUNCE_DELAY = 300; 
-        
-        const COUNTRY_MAP = {
-            "BE": "België", "NL": "Nederland", "DE": "Duitsland", "FR": "Frankrijk",
-            "US": "Verenigde Staten", "GB": "Verenigd Koninkrijk", "CA": "Canada", "AU": "Australië",
-            "JP": "Japan", "CN": "China", "IN": "India", "BR": "Brazilië",
-            "RU": "Rusland", "NO": "Noorwegen", "SE": "Zweden", "DK": "Denemarken",
-            "ES": "Spanje", "IT": "Italië", "PT": "Portugal", "GR": "Griekenland",
-            // Uitbreiding voor veelvoorkomende EU landen en algemene landen:
-            "AT": "Oostenrijk", "CH": "Zwitserland", "IE": "Ierland", "PL": "Polen", 
-            "HU": "Hongarije", "CZ": "Tsjechië", "SK": "Slowakije", "HR": "Kroatië", 
-            "TR": "Turkije", "SA": "Saoedi-Arabië", "AE": "Verenigde Arabische Emiraten",
-            "SG": "Singapore", "MY": "Maleisië", "ID": "Indonesië", "TH": "Thailand",
-            "PH": "Filipijnen", "KR": "Zuid-Korea", "MX": "Mexico", "AR": "Argentinië",
-            "CL": "Chili", "ZA": "Zuid-Afrika", "EG": "Egypte", "MA": "Marokko",
-            "NG": "Nigeria", "FI": "Finland", "IS": "IJsland", "NZ": "Nieuw-Zeeland",
-            "MT": "Malta", "MU": "Mauritius", "HK": "Hongkong", "KW": "Koeweit",
-            "QA": "Qatar", "CY": "Cyprus", "PE": "Peru", "CO": "Colombia", "VE": "Venezuela",
-            "EC": "Ecuador", "BO": "Bolivië", "PY": "Paraguay", "UY": "Uruguay",
-            "CD": "Democratische Republiek Congo", // NIEUW: Congo (Democratische Republiek)
-            "CG": "Congo",
-            "CM": "Kameroen",
-            "KE": "Kenia",
-            "TZ": "Tanzania",
-            "UG": "Oeganda", // NIEUW: Oeganda
-            "PG": "Papoea-Nieuw-Guinea", // NIEUW: Papoea-Nieuw-Guinea
-            "PK": "Pakistan",
-            "BD": "Bangladesh",
-            "NP": "Nepal",
-            "LK": "Sri Lanka",
-            "MM": "Myanmar",
-            "LA": "Laos",
-            "KH": "Cambodja",
-            "VN": "Vietnam",
-            "DZ": "Algerije",
-            "SD": "Soedan",
-            "ET": "Ethiopië",
-            "SS": "Zuid-Soedan",
-            "CF": "Centraal-Afrikaanse Republiek",
-            "GH": "Ghana", // NIEUW: Ghana
-            "GN": "Guinee" // NIEUW: Guinee
-        };
-
-
-        // --- DEDUCTION GAME STATE ---
-        let deductionTargetTemp = 0;
-        let deductionTurnsLeft = DEDUCTION_MAX_TURNS;
-        let deductionTurnHistory = []; 
-        let deductionSelectedCityData = null; // NIEUW: {lat, lon, name, country}
-
-        // --- GUESSING GAME STATE ---
-        let guessingSecretNumber = 0; 
-        let guessingTurnsLeft = GUESSING_MAX_TURNS;
-        let guessingTurnHistory = []; 
-        let guessingSelectedCityData = null;
-        
-        let gameActive = false;
-        let debounceTimer;
-
-        // --- DOM Elementen ---
-        const mainMenu = document.getElementById('main-menu');
-        const gameContainer = document.getElementById('game-container');
-        const statusMessage = document.getElementById('status-message');
-        const startGameButton = document.getElementById('startGameButton'); 
-        const startGameGuessButton = document.getElementById('startGameGuessButton'); 
-
-        // --- DEDUCTION DOM ---
-        const deductionGame = document.getElementById('deduction-game');
-        const deductionGameBoard = document.getElementById('deduction-game-board');
-        const deductionEndScreen = document.getElementById('deduction-end-screen');
-        const deductionTargetDisplay = document.getElementById('deduction-target-display');
-        const deductionTurnsDisplay = document.getElementById('deduction-turns-display');
-        const deductionSubmitButton = document.getElementById('deduction-submit-button');
-        const deductionTurnResult = document.getElementById('deduction-turn-result');
-        const deductionHistoryLog = document.getElementById('deduction-history-log');
-        const deductionHistoryPlaceholder = document.getElementById('deduction-history-placeholder');
-        const deductionCityInput = document.getElementById('deduction-city-input');
-        const deductionSuggestions = document.getElementById('deduction-suggestions');
-
-        // --- GUESSING DOM ---
-        const guessingGame = document.getElementById('guessing-game');
-        const guessingGameBoard = document.getElementById('guessing-game-board');
-        const guessingEndScreen = document.getElementById('guessing-end-screen');
-        const guessingTargetDisplay = document.getElementById('guessing-target-display');
-        const guessingTurnsDisplay = document.getElementById('guessing-turns-display');
-        const guessingSubmitButton = document.getElementById('guessing-submit-button');
-        const guessingTurnResult = document.getElementById('guessing-turn-result');
-        const guessingHistoryLog = document.getElementById('guessing-history-log');
-        const guessingHistoryPlaceholder = document.getElementById('guessing-history-placeholder');
-        const guessingCityInput = document.getElementById('guessing-city-input');
-        const guessingSuggestions = document.getElementById('guessing-suggestions');
-
-
-        // --- View Management ---
-        function showView(viewName) {
-            mainMenu.classList.add('hidden');
-            gameContainer.classList.add('hidden');
-            deductionGame.classList.add('hidden');
-            guessingGame.classList.add('hidden');
-            
-            if (viewName === 'menu') {
-                mainMenu.classList.remove('hidden');
-                checkApiStatus(); 
-            } else if (viewName === 'game') {
-                gameContainer.classList.remove('hidden');
-            }
-        }
-
-        // --- API & Core Functies ---
-
-        /**
-         * Haalt de GEMIDDELDE temperatuur op voor de geselecteerde coördinaten.
-         * @param {object} cityData - Bevat lat, lon.
-         * @param {HTMLElement} resultElement - Element om fouten in te tonen.
-         * @returns {Promise<number|null>}
-         */
-        async function fetchTemperature(cityData, resultElement) {
-            const forecastParams = new URLSearchParams({
-                lat: cityData.lat, lon: cityData.lon, appid: API_KEY, units: 'metric'
-            }).toString();
-
-            try {
-                const forecastResponse = await fetch(`${FORECAST_API_URL}?${forecastParams}`);
-                const forecastData = await forecastResponse.json();
-
-                if (forecastResponse.status !== 200) {
-                    resultElement.innerHTML = `<span class="text-red-500 font-medium">❌ Fout (${forecastResponse.status}): Kon voorspellingsdata niet ophalen.</span>`;
-                    return null;
-                }
-                
-                // --- BEREKEN HET GEMIDDELDE VAN DE DAG (hele getallen) ---
-                let totalTemp = 0;
-                let count = 0;
-                let firstAvailableDate = null;
-                
-                if (forecastData.list && forecastData.list.length > 0) {
-                    firstAvailableDate = forecastData.list[0].dt_txt.slice(0, 10);
-                } else {
-                     resultElement.innerHTML = `<span class="text-red-500 font-medium">❌ Fout: Geen voorspellingslijst beschikbaar.</span>`;
-                     return null;
-                }
-
-                for (const item of forecastData.list) {
-                    if (item.dt_txt.startsWith(firstAvailableDate)) {
-                        totalTemp += item.main.temp;
-                        count++;
-                    }
-                }
-
-                if (count === 0) {
-                    // Terugval: Als er geen metingen zijn voor de eerste dag, gebruik dan de eerste meting die we kunnen vinden.
-                    if (forecastData.list && forecastData.list.length > 0) {
-                        const singleTemp = forecastData.list[0].main.temp;
-                        const roundedTemp = Math.round(singleTemp); 
-                        resultElement.innerHTML += `<br><span class="text-orange-500 font-medium">⚠️ Gebruikt enkele temperatuurmeting: ${roundedTemp}°C.</span>`;
-                        return roundedTemp;
-                    }
-                    
-                    resultElement.innerHTML = `<span class="text-red-500 font-medium">❌ Fout: Kon geen temperatuurmetingen vinden voor de dichtstbijzijnde dag.</span>`;
-                    return null;
-                }
-
-                const averageTemp = totalTemp / count;
-                const roundedTemp = Math.round(averageTemp); 
-                
-                return roundedTemp;
-
-            } catch (error) {
-                resultElement.innerHTML = `<span class="text-red-500 font-medium">❌ Algemene Netwerkfout bij ophalen data.</span>`;
-                return null;
-            }
-        }
-        
-        // --- Autocomplete Functies (Aangepast voor beide games) ---
-
-        /**
-         * Roept de API aan om suggesties voor stadsnamen op te halen.
-         * @param {string} query
-         * @param {function} callback - Functie om suggesties te renderen.
-         */
-        async function fetchCitySuggestions(query, callback) {
-            
-            const geoParams = new URLSearchParams({
-                q: query,
-                limit: 2, 
-                appid: API_KEY,
-            }).toString();
-
-            try {
-                const response = await fetch(`${GEO_API_URL}?${geoParams}`);
-                const data = await response.json();
-                callback(data);
-            } catch (error) {
-                console.error("Fout bij ophalen suggesties:", error);
-                callback([]);
-            }
-        }
-
-        /**
-         * Render de suggesties in de container voor de DEDUCTION game.
-         */
-        function renderDeductionSuggestions(cities) {
-            renderSuggestions(cities, deductionSuggestions, deductionSubmitButton, (city) => {
-                deductionSelectedCityData = city;
-            });
-        }
-        
-        /**
-         * Render de suggesties in de container voor de GUESSING game.
-         */
-        function renderGuessingSuggestions(cities) {
-            renderSuggestions(cities, guessingSuggestions, guessingSubmitButton, (city) => {
-                guessingSelectedCityData = city;
-            });
-        }
-
-        /**
-         * Genereert de volledige landnaam.
-         */
-        function getCountryName(code) {
-            return COUNTRY_MAP[code] || code;
-        }
-
-        /**
-         * Generieke functie om suggesties te renderen en state te updaten.
-         */
-        function renderSuggestions(cities, container, submitButton, setCityData) {
-            container.innerHTML = '';
-            const seenKeys = new Set(); 
-            submitButton.disabled = true; 
-
-            if (cities.length === 0) {
-                container.classList.add('hidden');
-                submitButton.disabled = false; // Laat knop toe als er geen suggesties zijn (onveilige gok)
-                return;
-            }
-
-            cities.forEach(city => {
-                const cityKey = `${city.name.toLowerCase()}-${city.country}`; 
-                
-                if (seenKeys.has(cityKey)) {
-                    return; 
-                }
-                seenKeys.add(cityKey);
-
-                const suggestionDiv = document.createElement('div');
-                
-                // NIEUWE WEERGAVE: Stad, Landnaam
-                // Haal de volledige landnaam op
-                const countryName = getCountryName(city.country);
-                let displayCityName = `${city.name}, ${countryName}`;
-
-                suggestionDiv.textContent = displayCityName;
-                suggestionDiv.className = 'suggestion-item';
-
-                suggestionDiv.addEventListener('click', () => {
-                    const inputElement = container.previousElementSibling; // Input element is de vorige sibling
-                    inputElement.value = displayCityName; // Vul met de volledige naam (voor de UI)
-                    container.classList.add('hidden');
-                    
-                    setCityData({
-                        name: city.name, 
-                        country: countryName, // Gebruik de volledige naam in de state
-                        lat: city.lat, 
-                        lon: city.lon
-                    });
-
-                    submitButton.disabled = false; 
-                    inputElement.focus(); 
-                });
-
-                container.appendChild(suggestionDiv);
-            });
-
-            container.classList.remove('hidden');
-        }
-
-        /**
-         * Debounce wrapper voor de suggesties.
-         */
-        function handleCityInput(event, gameType) {
-            clearTimeout(debounceTimer);
-            
-            let cityInput, suggestionsContainer, submitButton, renderCallback, setCityData;
-            
-            if (gameType === 'deduction') {
-                cityInput = deductionCityInput;
-                suggestionsContainer = deductionSuggestions;
-                submitButton = deductionSubmitButton;
-                renderCallback = renderDeductionSuggestions;
-                setCityData = (city) => deductionSelectedCityData = city;
-            } else {
-                cityInput = guessingCityInput;
-                suggestionsContainer = guessingSuggestions;
-                submitButton = guessingSubmitButton;
-                renderCallback = renderGuessingSuggestions;
-                setCityData = (city) => guessingSelectedCityData = city;
-            }
-
-            const query = event.target.value.trim();
-            setCityData(null); 
-            submitButton.disabled = true; 
-            
-            if (query.length < 4) { 
-                suggestionsContainer.classList.add('hidden');
-                submitButton.disabled = false; 
-                return;
-            }
-
-            debounceTimer = setTimeout(() => {
-                fetchCitySuggestions(query, renderCallback);
-            }, DEBOUNCE_DELAY);
-        }
-        
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('#deduction-suggestions') && e.target.id !== 'deduction-city-input' &&
-                !e.target.closest('#guessing-suggestions') && e.target.id !== 'guessing-city-input') {
-                deductionSuggestions.classList.add('hidden');
-                guessingSuggestions.classList.add('hidden');
-            }
-        });
-
-
-        // --- Status Management ---
-
-        async function testApiConnection() {
-            statusMessage.textContent = "🔬 API-verbinding testen met OpenWeatherMap...";
-            statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-blue-100 text-blue-700";
-
-            const testParams = new URLSearchParams({ q: "London", limit: 1, appid: API_KEY, }).toString();
-
-            try {
-                const response = await fetch(`${GEO_API_URL}?${testParams}`); 
-                
-                if (response.status === 200) {
-                    statusMessage.textContent = "✅ API-sleutel is geldig en actief. Kies een spel!";
-                    statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-green-100 text-green-700";
-                    return true;
-                } else {
-                    statusMessage.textContent = "❌ FOUT (401/Netwerk): API-sleutel ongeldig of niet actief. Spellen vereisen live data.";
-                    statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-red-100 text-red-700 pulse";
-                    return false;
-                }
-            } catch (error) {
-                statusMessage.textContent = "❌ Netwerkfout: Kan geen verbinding maken met de API-service.";
-                statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-red-100 text-red-700";
-                return false;
-            }
-        }
-        
-        async function checkApiStatus() {
-            mainMenu.classList.remove('hidden');
-            const success = await testApiConnection();
-
-            if (success) {
-                startGameButton.disabled = false;
-                startGameGuessButton.disabled = false;
-            } else {
-                startGameButton.disabled = true;
-                startGameGuessButton.disabled = true;
-            }
-        }
-
-        async function checkApiAndStart(gameType) {
-            const apiIsActive = statusMessage.classList.contains('bg-green-100');
-            
-            if (apiIsActive || await testApiConnection()) {
-                showView('game');
-                if (gameType === 'deduction') {
-                    deductionGame.classList.remove('hidden');
-                    initializeDeductionGame();
-                } else if (gameType === 'guessing') {
-                    guessingGame.classList.remove('hidden');
-                    initializeGuessingGame();
-                }
-            }
-        }
-
-
-        // **********************************************
-        // ********** DEDUCTION GAME LOGIC **************
-        // **********************************************
-
-        function updateDeductionDisplay() {
-            deductionTargetDisplay.textContent = `${deductionTargetTemp.toFixed(0)}°C`;
-            deductionTurnsDisplay.textContent = `${deductionTurnsLeft}/${DEDUCTION_MAX_TURNS}`;
-
-            if (deductionTargetTemp < 0) {
-                deductionTargetDisplay.classList.add('text-red-400');
-            } else {
-                deductionTargetDisplay.classList.remove('text-red-400');
-            }
-        }
-
-        async function renderDeductionHistory() {
-            deductionHistoryLog.innerHTML = ''; 
-            if (deductionTurnHistory.length === 0) {
-                deductionHistoryPlaceholder.classList.remove('hidden');
-                return;
-            }
-            deductionHistoryPlaceholder.classList.add('hidden');
-
-            deductionTurnHistory.slice().reverse().forEach((turn, index) => {
-                const listItem = document.createElement('li');
-                listItem.className = 'text-gray-700 text-sm flex justify-between items-center p-2 rounded-lg transition duration-100 bg-gray-50 hover:bg-gray-100 border-l-4 border-red-400';
-                
-                listItem.innerHTML = `
-                    <span class="font-bold text-blue-700 mr-2">Worp ${DEDUCTION_MAX_TURNS - deductionTurnsLeft - index}:</span>
-                    <span>${turn.name}, ${turn.country}</span>
-                    <span class="font-black text-red-600">${turn.temp}°C</span>
-                `;
-                deductionHistoryLog.appendChild(listItem);
-            });
-        }
-
-        function initializeDeductionGame() {
-            // Gebruik de nieuwe, krappere grenzen (25 tot 125)
-            deductionTargetTemp = Math.floor(Math.random() * (DEDUCTION_MAX_TARGET - DEDUCTION_MIN_TARGET + 1)) + DEDUCTION_MIN_TARGET; 
-            deductionTurnsLeft = DEDUCTION_MAX_TURNS;
-            gameActive = true;
-            deductionTurnHistory = []; 
-            deductionSelectedCityData = null; 
-            
-            deductionCityInput.value = '';
-            deductionSubmitButton.disabled = true; 
-            deductionSubmitButton.textContent = "Trek Temperatuur Af";
-
-            updateDeductionDisplay(); 
-            renderDeductionHistory(); 
-
-            deductionGameBoard.classList.remove('hidden'); 
-            deductionEndScreen.classList.add('hidden');
-        }
-
-        async function handleDeductionTurn() {
-            if (!gameActive || deductionTurnsLeft === 0 || !deductionSelectedCityData) return;
-            
-            const cityData = deductionSelectedCityData;
-            
-            // 1. Controleer op duplicaten
-            const keyToCheck = `${cityData.name.toLowerCase()}-${cityData.country.toLowerCase()}`;
-            const isDuplicate = deductionTurnHistory.some(turn => `${turn.name.toLowerCase()}-${turn.country.toLowerCase()}` === keyToCheck);
-
-            if (isDuplicate) {
-                deductionTurnResult.innerHTML = `<span class="text-red-600 font-medium">❌ Fout: De stad '${cityData.name}, ${cityData.country}' is al gegokt. Kies een nieuwe stad!</span>`;
-                deductionTurnResult.classList.remove('hidden');
-                deductionSelectedCityData = null; 
-                deductionCityInput.value = '';
-                deductionSubmitButton.disabled = true;
-                return;
-            }
-            
-            // 2. Haal temperatuur op
-            const temperature = await fetchTemperature(cityData, deductionTurnResult);
-            
-            if (temperature === null) {
-                deductionSubmitButton.disabled = true; 
-                return; 
-            }
-            
-            // Bepaal thematische emoji
-            const emoji = temperature > 25 ? '☀️' : temperature < 5 ? '❄️' : '☁️';
-
-            // --- Succesvolle GOK ---
-            const oldTarget = deductionTargetTemp;
-            deductionTargetTemp -= temperature; 
-            deductionTurnsLeft--; 
-
-            deductionTurnHistory.push({ 
-                name: cityData.name, 
-                country: cityData.country, 
-                temp: temperature
-            });
-            
-            deductionTurnResult.innerHTML = `
-                <div class="result-content">
-                    <span class="temp-icon">${emoji}</span>
-                    <div>
-                        <p class="text-sm text-gray-700 font-medium">Afgetrokken (Daggemiddelde van ${cityData.name}, ${cityData.country}): ${temperature.toFixed(0)}°C</p>
-                        <p class="text-sm text-gray-700 mt-1">Nieuw Doel: ${oldTarget.toFixed(0)}°C - ${temperature.toFixed(0)}°C = <span class="font-bold text-xl text-blue-700">${deductionTargetTemp.toFixed(0)}°C</span></p>
-                    </div>
-                </div>
-            `;
-            
-            // UI en status reset
-            deductionSelectedCityData = null; 
-            deductionCityInput.value = '';
-            deductionSubmitButton.disabled = true; 
-
-            updateDeductionDisplay();
-            renderDeductionHistory(); 
-
-            if (deductionTargetTemp <= 0 || deductionTurnsLeft === 0) {
-                endDeductionGame();
-            }
-        }
-
-        function endDeductionGame() {
-            gameActive = false;
-            deductionGameBoard.classList.add('hidden');
-            deductionEndScreen.classList.remove('hidden');
-            deductionTurnResult.classList.add('hidden');
-
-            const score = deductionTargetTemp;
-            
-            if (score === 0) {
-                document.getElementById('deduction-end-title').textContent = "🏆 PERFECTE SCORE! 🏆";
-                document.getElementById('deduction-end-title').className = "text-4xl font-black mb-4 text-green-600";
-                document.getElementById('deduction-end-message').textContent = "Je hebt precies 0°C bereikt! Meesterlijke strategie!";
-            } else if (score > 0) {
-                document.getElementById('deduction-end-title').textContent = "Einde Spel!";
-                document.getElementById('deduction-end-title').className = "text-4xl font-black mb-4 text-yellow-700";
-                document.getElementById('deduction-end-message').textContent = `De beurten zijn op. Je bent geëindigd met ${score.toFixed(0)}°C over. Score: ${score.toFixed(0)} punten.`;
-            } else {
-                document.getElementById('deduction-end-title').textContent = "🚨 Over De Schreef! 🚨";
-                document.getElementById('deduction-end-title').className = "text-4xl font-black mb-4 text-red-600";
-                document.getElementById('deduction-end-message').textContent = `Je hebt onder nul geëindigd met ${score.toFixed(0)}°C. Probeer de volgende keer beter in te schatten.`;
-            }
-        }
-
-        // **********************************************
-        // ********** GUESSING GAME LOGIC ***************
-        // **********************************************
-
-        function updateGuessingDisplay() {
-            guessingTurnsDisplay.textContent = `${guessingTurnsLeft}/${GUESSING_MAX_TURNS}`;
-            // Toon het geheime nummer alleen als het spel voorbij is
-            guessingTargetDisplay.textContent = gameActive ? "??" : `${guessingSecretNumber}°C`;
-            guessingTargetDisplay.classList.remove('text-green-600');
-        }
-
-        function renderGuessingHistory() {
-            guessingHistoryLog.innerHTML = ''; 
-            if (guessingTurnHistory.length === 0) {
-                guessingHistoryPlaceholder.classList.remove('hidden');
-                return;
-            }
-            guessingHistoryPlaceholder.classList.add('hidden');
-
-            guessingTurnHistory.slice().reverse().forEach((turn, index) => {
-                const listItem = document.createElement('li');
-                listItem.className = 'text-gray-700 text-sm flex justify-between items-center p-2 rounded-lg transition duration-100 bg-gray-50 hover:bg-gray-100 border-l-4 ' + turn.color;
-                
-                listItem.innerHTML = `
-                    <span class="font-bold text-gray-700 mr-2">Gok ${GUESSING_MAX_TURNS - guessingTurnsLeft - index}:</span>
-                    <span>${turn.name}, ${turn.country}</span>
-                    <span class="font-black ${turn.textColor}">${turn.guess}°C (${turn.feedback})</span>
-                `;
-                guessingHistoryLog.appendChild(listItem);
-            });
-        }
-        
-        function initializeGuessingGame() {
-            guessingSecretNumber = Math.floor(Math.random() * (GUESSING_MAX_TARGET - GUESSING_MIN_TARGET + 1)) + GUESSING_MIN_TARGET;
-            guessingTurnsLeft = GUESSING_MAX_TURNS;
-            gameActive = true;
-            guessingTurnHistory = []; 
-            guessingSelectedCityData = null; 
-            
-            guessingCityInput.value = '';
-            guessingSubmitButton.disabled = true; 
-            guessingSubmitButton.textContent = "Controleer Temperatuur";
-
-            updateGuessingDisplay(); 
-            renderGuessingHistory(); 
-
-            guessingGameBoard.classList.remove('hidden'); 
-            guessingEndScreen.classList.add('hidden');
-        }
-
-        async function handleGuessingTurn() {
-            if (!gameActive || guessingTurnsLeft === 0 || !guessingSelectedCityData) return;
-            
-            const cityData = guessingSelectedCityData;
-
-            // 1. Haal temperatuur op
-            const temperature = await fetchTemperature(cityData, guessingTurnResult);
-            
-            if (temperature === null) {
-                guessingSubmitButton.disabled = true; 
-                return; 
-            }
-
-            const guess = temperature;
-            let feedback = '';
-            let color = 'border-red-500';
-            let textColor = 'text-red-600';
-            
-            if (guess === guessingSecretNumber) {
-                feedback = 'GEWONNEN!';
-                color = 'border-green-500';
-                textColor = 'text-green-600';
-                gameActive = false;
-            } else if (guess < guessingSecretNumber) {
-                feedback = 'HOGER';
-                color = 'border-yellow-500';
-                textColor = 'text-yellow-600';
-            } else {
-                feedback = 'LAGER';
-                color = 'border-blue-500';
-                textColor = 'text-blue-600';
-            }
-
-            guessingTurnsLeft--; 
-
-            guessingTurnHistory.push({ 
-                name: cityData.name, country: cityData.country, 
-                guess: guess, feedback: feedback, color: color, textColor: textColor,
-                lat: cityData.lat, lon: cityData.lon
-            });
-            
-            // Bepaal thematische emoji
-            const emoji = guess > 25 ? '☀️' : guess < 5 ? '❄️' : '☁️';
-            
-            guessingTurnResult.innerHTML = `
-                <div class="result-content">
-                    <span class="temp-icon">${emoji}</span>
-                    <div>
-                        <p class="text-sm text-gray-700 font-medium">Temperatuur van ${cityData.name}, ${cityData.country}: <span class="font-bold ${textColor}">${guess}°C</span></p>
-                        <p class="text-sm text-gray-700 mt-1">Feedback: Het geheime getal is <span class="font-bold text-lg ${textColor}">${feedback}</span>.</p>
-                    </div>
-                </div>
-            `;
-            
-            // UI en status reset
-            guessingSelectedCityData = null; 
-            guessingCityInput.value = '';
-            guessingSubmitButton.disabled = true; 
-
-            updateGuessingDisplay();
-            renderGuessingHistory(); 
-
-            if (!gameActive || guessingTurnsLeft === 0) {
-                endGuessingGame(guess === guessingSecretNumber);
-            }
-        }
-
-        function endGuessingGame(won) {
-            gameActive = false;
-            guessingGameBoard.classList.add('hidden');
-            guessingEndScreen.classList.remove('hidden');
-            guessingTurnResult.classList.add('hidden');
-
-            const titleElement = document.getElementById('guessing-end-title');
-            const messageElement = document.getElementById('guessing-end-message');
-            
-            if (won) {
-                titleElement.textContent = "🥳 GEVONDEN! 🥳";
-                titleElement.className = "text-4xl font-black mb-4 text-green-600";
-                messageElement.textContent = `Je hebt het geheime nummer (${guessingSecretNumber}) geraden in ${GUESSING_MAX_TURNS - guessingTurnsLeft} gokken!`;
-            } else {
-                titleElement.textContent = "❌ GAME OVER ❌";
-                titleElement.className = "text-4xl font-black mb-4 text-red-600";
-                messageElement.textContent = `Je beurten zijn op. Het geheime nummer was ${guessingSecretNumber}.`;
-            }
-            
-            // Toon het geheime nummer in het scorepaneel
-            guessingTargetDisplay.textContent = `${guessingSecretNumber}°C`;
-            if (won) guessingTargetDisplay.classList.add('text-green-600');
-        }
-
-        // --- Event Listeners Init ---
-        
-        // Deduction Game Listeners
-        deductionSubmitButton.addEventListener('click', handleDeductionTurn);
-        deductionCityInput.addEventListener('input', (e) => handleCityInput(e, 'deduction'));
-        deductionCityInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !deductionSubmitButton.disabled) {
-                handleDeductionTurn();
-            }
-        });
-        
-        // Guessing Game Listeners
-        guessingSubmitButton.addEventListener('click', handleGuessingTurn);
-        guessingCityInput.addEventListener('input', (e) => handleCityInput(e, 'guessing'));
-        guessingCityInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !guessingSubmitButton.disabled) {
-                handleGuessingTurn();
-            }
-        });
-
-        // Start de initiële API-controle bij het laden van de pagina
-        window.onload = checkApiStatus;
-
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
