@@ -2,10 +2,10 @@
 // ********** 1. CONFIGURATIE & STATUS **********
 // **********************************************
 
-// Jouw API-sleutel.
 const API_KEY = "b10dc274a5e56f6f6fc4fe68a7987217";
 const GEO_API_URL = "https://api.openweathermap.org/geo/1.0/direct";
 const FORECAST_API_URL = "https://api.openweathermap.org/data/2.5/forecast";
+const REVERSE_GEO_API_URL = "https://api.openweathermap.org/geo/1.0/reverse";
 
 // --- Spel parameters ---
 const DEDUCTION_MAX_TURNS = 5;
@@ -17,295 +17,206 @@ const GUESSING_MIN_TARGET = 5;
 const GUESSING_MAX_TARGET = 30;
 const DEBOUNCE_DELAY = 300;
 
-// --- Game State (Status) ---
+// --- Globale Status ---
+let currentGameType = ''; 
+let currentInputMode = ''; 
+let gameActive = false;
+let debounceTimer;
+
+// State Spel 1 (Deduction)
 let deductionTargetTemp = 0;
 let deductionTurnsLeft = DEDUCTION_MAX_TURNS;
 let deductionTurnHistory = [];
 let deductionSelectedCityData = null;
 
+// State Spel 2 (Guessing)
 let guessingSecretNumber = 0;
 let guessingTurnsLeft = GUESSING_MAX_TURNS;
 let guessingTurnHistory = [];
 let guessingSelectedCityData = null;
 
-let gameActive = false;
-let debounceTimer;
+// Kaart variabelen
+let mapInstances = {}; 
+let mapMarkers = {};   
 
 // --- DOM Elementen ---
 const mainMenu = document.getElementById('main-menu');
 const gameContainer = document.getElementById('game-container');
 const statusMessage = document.getElementById('status-message');
-const startGameButton = document.getElementById('startGameButton');
-const startGameGuessButton = document.getElementById('startGameGuessButton');
 
 // **********************************************
-// ********** 2. HULPMIDDELEN & LANDKAARTEN *******
+// ********** 2. API & HELPER FUNCTIES **********
 // **********************************************
 
-const COUNTRY_MAP = {
-    "BE": "België", "NL": "Nederland", "DE": "Duitsland", "FR": "Frankrijk",
-    "US": "Verenigde Staten", "GB": "Verenigd Koninkrijk", "CA": "Canada", "AU": "Australië",
-    "JP": "Japan", "CN": "China", "IN": "India", "BR": "Brazilië",
-    "RU": "Rusland", "NO": "Noorwegen", "SE": "Zweden", "DK": "Denemarken",
-    "ES": "Spanje", "IT": "Italië", "PT": "Portugal", "GR": "Griekenland",
-    "AT": "Oostenrijk", "CH": "Zwitserland", "IE": "Ierland", "PL": "Polen",
-    "HU": "Hongarije", "CZ": "Tsjechië", "SK": "Slowakije", "HR": "Kroatië",
-    "TR": "Turkije", "SA": "Saoedi-Arabië", "AE": "Verenigde Arabische Emiraten",
-    "SG": "Singapore", "MY": "Maleisië", "ID": "Indonesië", "TH": "Thailand",
-    "PH": "Filipijnen", "KR": "Zuid-Korea", "MX": "Mexico", "AR": "Argentinië",
-    "CL": "Chili", "ZA": "Zuid-Afrika", "EG": "Egypte", "MA": "Marokko",
-    "NG": "Nigeria", "FI": "Finland", "IS": "IJsland", "NZ": "Nieuw-Zeeland",
-    "MT": "Malta", "MU": "Mauritius", "HK": "Hongkong", "KW": "Koeweit",
-    "QA": "Qatar", "CY": "Cyprus", "PE": "Peru", "CO": "Colombia", "VE": "Venezuela",
-    "EC": "Ecuador", "BO": "Bolivië", "PY": "Paraguay", "UY": "Uruguay",
-    "CD": "Democratische Republiek Congo",
-    "CG": "Congo",
-    "CM": "Kameroen",
-    "KE": "Kenia",
-    "TZ": "Tanzania",
-    "UG": "Oeganda",
-    "PG": "Papoea-Nieuw-Guinea",
-    "PK": "Pakistan",
-    "BD": "Bangladesh",
-    "NP": "Nepal",
-    "LK": "Sri Lanka",
-    "MM": "Myanmar",
-    "LA": "Laos",
-    "KH": "Cambodja",
-    "VN": "Vietnam",
-    "DZ": "Algerije",
-    "SD": "Soedan",
-    "ET": "Ethiopië",
-    "SS": "Zuid-Soedan",
-    "CF": "Centraal-Afrikaanse Republiek",
-    "GH": "Ghana",
-    "GN": "Guinee"
-};
+const COUNTRY_MAP = { "BE": "België", "NL": "Nederland", "DE": "Duitsland", "FR": "Frankrijk", "US": "VS", "GB": "VK", "ES": "Spanje", "IT": "Italië", "CN": "China", "JP": "Japan", "AU": "Australië", "BR": "Brazilië", "RU": "Rusland", "CA": "Canada", "IN": "India" }; 
 
-function getCountryName(code) {
-    return COUNTRY_MAP[code] || code;
-}
-
-// **********************************************
-// ********** 3. API & DATATRANSFORMATIE **********
-// **********************************************
+function getCountryName(code) { return COUNTRY_MAP[code] || code; }
 
 async function testApiConnection() {
-    statusMessage.textContent = "🔬 API-verbinding testen met OpenWeatherMap...";
-    statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-blue-100 text-blue-700";
-
-    const testParams = new URLSearchParams({ q: "London", limit: 1, appid: API_KEY, }).toString();
-
+    statusMessage.textContent = "🔬 Verbinding testen...";
+    statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-blue-100 text-blue-700 text-sm";
+    const testParams = new URLSearchParams({ q: "London", limit: 1, appid: API_KEY }).toString();
     try {
         const response = await fetch(`${GEO_API_URL}?${testParams}`);
-
         if (response.status === 200) {
-            statusMessage.textContent = "✅ API-sleutel is geldig en actief. Kies een spel!";
-            statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-green-100 text-green-700";
+            statusMessage.textContent = "✅ Klaar om te spelen!";
+            statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-green-100 text-green-700 text-sm";
             return true;
-        } else {
-            statusMessage.textContent = "❌ FOUT (401/Netwerk): API-sleutel ongeldig of niet actief. Spellen vereisen live data.";
-            statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-red-100 text-red-700 pulse";
-            return false;
         }
-    } catch (error) {
-        statusMessage.textContent = "❌ Netwerkfout: Kan geen verbinding maken met de API-service.";
-        statusMessage.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-red-100 text-red-700";
         return false;
-    }
+    } catch { return false; }
 }
 
 async function fetchTemperature(cityData, resultElement) {
-    const forecastParams = new URLSearchParams({
-        lat: cityData.lat, lon: cityData.lon, appid: API_KEY, units: 'metric'
-    }).toString();
-
+    const forecastParams = new URLSearchParams({ lat: cityData.lat, lon: cityData.lon, appid: API_KEY, units: 'metric' }).toString();
     try {
-        const forecastResponse = await fetch(`${FORECAST_API_URL}?${forecastParams}`);
-        const forecastData = await forecastResponse.json();
+        const response = await fetch(`${FORECAST_API_URL}?${forecastParams}`);
+        const data = await response.json();
+        if (response.status !== 200) throw new Error("API Fout");
 
-        if (forecastResponse.status !== 200) {
-            resultElement.innerHTML = `<span class="text-red-500 font-medium">❌ Fout (${forecastResponse.status}): Kon voorspellingsdata niet ophalen.</span>`;
-            return null;
+        let total = 0, count = 0, date = data.list[0].dt_txt.slice(0, 10);
+        for (const item of data.list) {
+            if (item.dt_txt.startsWith(date)) { total += item.main.temp; count++; }
         }
-
-        let totalTemp = 0;
-        let count = 0;
-        let firstAvailableDate = null;
-
-        if (forecastData.list && forecastData.list.length > 0) {
-            firstAvailableDate = forecastData.list[0].dt_txt.slice(0, 10);
-        } else {
-             resultElement.innerHTML = `<span class="text-red-500 font-medium">❌ Fout: Geen voorspellingslijst beschikbaar.</span>`;
-             return null;
-        }
-
-        for (const item of forecastData.list) {
-            if (item.dt_txt.startsWith(firstAvailableDate)) {
-                totalTemp += item.main.temp;
-                count++;
-            }
-        }
-
-        if (count === 0) {
-            if (forecastData.list && forecastData.list.length > 0) {
-                const singleTemp = forecastData.list[0].main.temp;
-                const roundedTemp = Math.round(singleTemp);
-                resultElement.innerHTML += `<br><span class="text-orange-500 font-medium">⚠️ Gebruikt enkele temperatuurmeting: ${roundedTemp}°C.</span>`;
-                return roundedTemp;
-            }
-
-            resultElement.innerHTML = `<span class="text-red-500 font-medium">❌ Fout: Kon geen temperatuurmetingen vinden voor de dichtstbijzijnde dag.</span>`;
-            return null;
-        }
-
-        const averageTemp = totalTemp / count;
-        return Math.round(averageTemp);
-
+        return count === 0 ? null : Math.round(total / count);
     } catch (error) {
-        resultElement.innerHTML = `<span class="text-red-500 font-medium">❌ Algemene Netwerkfout bij ophalen data.</span>`;
+        resultElement.innerHTML = `<span class="text-red-500">❌ Fout bij ophalen weergegevens.</span>`;
         return null;
     }
 }
 
-// --- Autocomplete Logica ---
-
+// --- Autocomplete ---
 async function fetchCitySuggestions(query, callback) {
-    const geoParams = new URLSearchParams({
-        q: query, limit: 2, appid: API_KEY,
-    }).toString();
-
+    const params = new URLSearchParams({ q: query, limit: 2, appid: API_KEY }).toString();
     try {
-        const response = await fetch(`${GEO_API_URL}?${geoParams}`);
-        const data = await response.json();
-        callback(data);
-    } catch (error) {
-        console.error("Fout bij ophalen suggesties:", error);
-        callback([]);
-    }
+        const response = await fetch(`${GEO_API_URL}?${params}`);
+        callback(await response.json());
+    } catch { callback([]); }
 }
 
 function renderSuggestions(cities, container, submitButton, setCityData) {
     container.innerHTML = '';
-    const seenKeys = new Set();
+    const seen = new Set();
     submitButton.disabled = true;
 
-    if (cities.length === 0) {
-        container.classList.add('hidden');
-        submitButton.disabled = false;
-        return;
-    }
+    if (cities.length === 0) { container.classList.add('hidden'); submitButton.disabled = false; return; }
 
     cities.forEach(city => {
-        const cityKey = `${city.name.toLowerCase()}-${city.country}`;
+        const key = `${city.name}-${city.country}`;
+        if (seen.has(key)) return;
+        seen.add(key);
 
-        if (seenKeys.has(cityKey)) return;
-        seenKeys.add(cityKey);
-
-        const suggestionDiv = document.createElement('div');
-        const countryName = getCountryName(city.country);
-        let displayCityName = `${city.name}, ${countryName}`;
-
-        suggestionDiv.textContent = displayCityName;
-        suggestionDiv.className = 'suggestion-item';
-
-        suggestionDiv.addEventListener('click', () => {
-            const inputElement = container.previousElementSibling;
-            inputElement.value = displayCityName;
+        const div = document.createElement('div');
+        const country = getCountryName(city.country);
+        const displayName = `${city.name}, ${country}`;
+        div.textContent = displayName;
+        div.className = 'suggestion-item';
+        div.onclick = () => {
+            container.previousElementSibling.value = displayName;
             container.classList.add('hidden');
-
-            setCityData({
-                name: city.name,
-                country: countryName,
-                lat: city.lat,
-                lon: city.lon
-            });
-
+            setCityData({ name: city.name, country: country, lat: city.lat, lon: city.lon });
             submitButton.disabled = false;
-            inputElement.focus();
-        });
-
-        container.appendChild(suggestionDiv);
+        };
+        container.appendChild(div);
     });
-
     container.classList.remove('hidden');
 }
 
 function handleCityInput(event, gameType) {
     clearTimeout(debounceTimer);
-
-    let cityInput, suggestionsContainer, submitButton, renderCallback, setCityData;
+    let input, container, btn, callback, setter;
 
     if (gameType === 'deduction') {
-        cityInput = document.getElementById('deduction-city-input');
-        suggestionsContainer = document.getElementById('deduction-suggestions');
-        submitButton = document.getElementById('deduction-submit-button');
-        renderCallback = (cities) => renderSuggestions(cities, suggestionsContainer, submitButton, (city) => deductionSelectedCityData = city);
-        setCityData = (city) => deductionSelectedCityData = city;
+        input = document.getElementById('deduction-city-input');
+        container = document.getElementById('deduction-suggestions');
+        btn = document.getElementById('deduction-submit-button');
+        callback = (c) => renderSuggestions(c, container, btn, (city) => deductionSelectedCityData = city);
+        setter = (c) => deductionSelectedCityData = c;
     } else {
-        cityInput = document.getElementById('guessing-city-input');
-        suggestionsContainer = document.getElementById('guessing-suggestions');
-        submitButton = document.getElementById('guessing-submit-button');
-        renderCallback = (cities) => renderSuggestions(cities, suggestionsContainer, submitButton, (city) => guessingSelectedCityData = city);
-        setCityData = (city) => guessingSelectedCityData = city;
+        input = document.getElementById('guessing-city-input');
+        container = document.getElementById('guessing-suggestions');
+        btn = document.getElementById('guessing-submit-button');
+        callback = (c) => renderSuggestions(c, container, btn, (city) => guessingSelectedCityData = city);
+        setter = (c) => guessingSelectedCityData = c;
     }
 
     const query = event.target.value.trim();
-    setCityData(null);
-    submitButton.disabled = true;
+    setter(null);
+    btn.disabled = true;
 
-    if (query.length < 4) {
-        suggestionsContainer.classList.add('hidden');
-        submitButton.disabled = false;
-        return;
-    }
-
-    debounceTimer = setTimeout(() => {
-        fetchCitySuggestions(query, renderCallback);
-    }, DEBOUNCE_DELAY);
+    if (query.length < 3) { container.classList.add('hidden'); btn.disabled = false; return; }
+    debounceTimer = setTimeout(() => fetchCitySuggestions(query, callback), DEBOUNCE_DELAY);
 }
 
 // **********************************************
-// ********** 4. DEDUCTIE SPEL LOGICA ***********
+// ********** 3. KAART LOGICA (LEAFLET) *********
 // **********************************************
 
-function updateDeductionDisplay() {
-    const targetDisplay = document.getElementById('deduction-target-display');
-    const turnsDisplay = document.getElementById('deduction-turns-display');
-
-    targetDisplay.textContent = `${deductionTargetTemp.toFixed(0)}°C`;
-    turnsDisplay.textContent = `${deductionTurnsLeft}/${DEDUCTION_MAX_TURNS}`;
-
-    if (deductionTargetTemp < 0) {
-        targetDisplay.classList.add('text-red-400');
-    } else {
-        targetDisplay.classList.remove('text-red-400');
-    }
-}
-
-async function renderDeductionHistory() {
-    const historyLog = document.getElementById('deduction-history-log');
-    const historyPlaceholder = document.getElementById('deduction-history-placeholder');
-
-    historyLog.innerHTML = '';
-    if (deductionTurnHistory.length === 0) {
-        historyPlaceholder.classList.remove('hidden');
+function initMap(gameType) {
+    const mapId = gameType === 'deduction' ? 'deduction-map' : 'guessing-map';
+    
+    if (mapInstances[gameType]) {
+        mapInstances[gameType].invalidateSize(); 
         return;
     }
-    historyPlaceholder.classList.add('hidden');
 
-    deductionTurnHistory.slice().reverse().forEach((turn, index) => {
-        const listItem = document.createElement('li');
-        listItem.className = 'text-gray-700 text-sm flex justify-between items-center p-2 rounded-lg transition duration-100 bg-gray-50 hover:bg-gray-100 border-l-4 border-red-400';
+    const map = L.map(mapId).setView([52.0, 5.0], 4);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
 
-        listItem.innerHTML = `
-            <span class="font-bold text-blue-700 mr-2">Worp ${DEDUCTION_MAX_TURNS - deductionTurnsLeft - index}:</span>
-            <span>${turn.name}, ${turn.country}</span>
-            <span class="font-black text-red-600">${turn.temp}°C</span>
-        `;
-        historyLog.appendChild(listItem);
-    });
+    map.on('click', (e) => onMapClick(e, gameType));
+    mapInstances[gameType] = map;
 }
+
+async function onMapClick(e, gameType) {
+    if (!gameActive) return;
+
+    const lat = e.latlng.lat;
+    const lon = e.latlng.lng;
+    const map = mapInstances[gameType];
+
+    if (mapMarkers[gameType]) map.removeLayer(mapMarkers[gameType]);
+    mapMarkers[gameType] = L.marker([lat, lon]).addTo(map);
+
+    const inputId = gameType === 'deduction' ? 'deduction-city-input' : 'guessing-city-input';
+    const btnId = gameType === 'deduction' ? 'deduction-submit-button' : 'guessing-submit-button';
+
+    document.getElementById(inputId).value = "Locatie zoeken...";
+    document.getElementById(btnId).disabled = true;
+
+    const params = new URLSearchParams({ lat: lat, lon: lon, limit: 1, appid: API_KEY }).toString();
+    
+    try {
+        const response = await fetch(`${REVERSE_GEO_API_URL}?${params}`);
+        const data = await response.json();
+
+        if (data && data.length > 0) {
+            const place = data[0];
+            const country = getCountryName(place.country);
+            const cityData = { name: place.name, country: country, lat: place.lat, lon: place.lon };
+
+            document.getElementById(inputId).value = `${place.name}, ${country}`;
+            
+            if (gameType === 'deduction') {
+                deductionSelectedCityData = cityData;
+            } else {
+                guessingSelectedCityData = cityData;
+            }
+
+            document.getElementById(btnId).disabled = false;
+        } else {
+            document.getElementById(inputId).value = "Geen stad gevonden (oceaan?).";
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+// **********************************************
+// ********** 4. SPEL 1: DEDUCTIE LOGICA ********
+// **********************************************
 
 function initializeDeductionGame() {
     deductionTargetTemp = Math.floor(Math.random() * (DEDUCTION_MAX_TARGET - DEDUCTION_MIN_TARGET + 1)) + DEDUCTION_MIN_TARGET;
@@ -314,9 +225,27 @@ function initializeDeductionGame() {
     deductionTurnHistory = [];
     deductionSelectedCityData = null;
 
-    document.getElementById('deduction-city-input').value = '';
-    document.getElementById('deduction-submit-button').disabled = true;
-    document.getElementById('deduction-submit-button').textContent = "Trek Temperatuur Af";
+    const input = document.getElementById('deduction-city-input');
+    const btn = document.getElementById('deduction-submit-button');
+    const mapContainer = document.getElementById('deduction-map-container');
+    const modeDisplay = document.getElementById('deduction-mode-display');
+
+    input.value = '';
+    btn.disabled = true;
+    btn.textContent = "Trek Temperatuur Af";
+    
+    if (currentInputMode === 'map') {
+        modeDisplay.textContent = "Modus: Landkaart";
+        mapContainer.classList.remove('hidden'); 
+        input.readOnly = true; 
+        input.placeholder = "Klik op de kaart om een stad te kiezen...";
+        setTimeout(() => initMap('deduction'), 100);
+    } else {
+        modeDisplay.textContent = "Modus: Typen";
+        mapContainer.classList.add('hidden'); 
+        input.readOnly = false; 
+        input.placeholder = "Typ een stad (bv. Parijs)...";
+    }
 
     updateDeductionDisplay();
     renderDeductionHistory();
@@ -327,62 +256,80 @@ function initializeDeductionGame() {
 
 async function handleDeductionTurn() {
     if (!gameActive || deductionTurnsLeft === 0 || !deductionSelectedCityData) return;
-
     const cityData = deductionSelectedCityData;
-    const deductionTurnResult = document.getElementById('deduction-turn-result');
+    const resultDiv = document.getElementById('deduction-turn-result');
 
-    // 1. Controleer op duplicaten
-    const keyToCheck = `${cityData.name.toLowerCase()}-${cityData.country.toLowerCase()}`;
-    const isDuplicate = deductionTurnHistory.some(turn => `${turn.name.toLowerCase()}-${turn.country.toLowerCase()}` === keyToCheck);
-
-    if (isDuplicate) {
-        deductionTurnResult.innerHTML = `<span class="text-red-600 font-medium">❌ Fout: De stad '${cityData.name}, ${cityData.country}' is al gegokt. Kies een nieuwe stad!</span>`;
-        deductionTurnResult.classList.remove('hidden');
+    // ** NIEUWE CHECK: DUPLICATE COUNTRY **
+    // We checken of de history al een entry heeft met hetzelfde 'country' veld
+    if (deductionTurnHistory.some(t => t.country === cityData.country)) {
+        resultDiv.innerHTML = `<span class="text-red-600 font-bold">❌ Je hebt al een stad in ${cityData.country} gekozen! Kies een ander land.</span>`;
+        resultDiv.classList.remove('hidden');
+        
+        // Reset inputs
         deductionSelectedCityData = null;
         document.getElementById('deduction-city-input').value = '';
         document.getElementById('deduction-submit-button').disabled = true;
+        
+        // Verwijder marker van de kaart als die er staat
+        if (mapMarkers['deduction'] && mapInstances['deduction']) {
+            mapInstances['deduction'].removeLayer(mapMarkers['deduction']);
+            mapMarkers['deduction'] = null;
+        }
         return;
     }
 
-    // 2. Haal temperatuur op
-    const temperature = await fetchTemperature(cityData, deductionTurnResult);
+    const temp = await fetchTemperature(cityData, resultDiv);
+    if (temp === null) return;
 
-    if (temperature === null) {
-        document.getElementById('deduction-submit-button').disabled = true;
-        return;
-    }
-
-    // Bepaal thematische emoji
-    const emoji = temperature > 25 ? '☀️' : temperature < 5 ? '❄️' : '☁️';
-
-    // --- Succesvolle GOK ---
     const oldTarget = deductionTargetTemp;
-    deductionTargetTemp -= temperature;
+    deductionTargetTemp -= temp;
     deductionTurnsLeft--;
+    deductionTurnHistory.push({ name: cityData.name, country: cityData.country, temp: temp });
 
-    deductionTurnHistory.push({ name: cityData.name, country: cityData.country, temp: temperature });
-
-    deductionTurnResult.innerHTML = `
+    const emoji = temp > 25 ? '☀️' : temp < 5 ? '❄️' : '☁️';
+    resultDiv.innerHTML = `
         <div class="result-content">
             <span class="temp-icon">${emoji}</span>
             <div>
-                <p class="text-sm text-gray-700 font-medium">Afgetrokken (Daggemiddelde van ${cityData.name}, ${cityData.country}): ${temperature.toFixed(0)}°C</p>
-                <p class="text-sm text-gray-700 mt-1">Nieuw Doel: ${oldTarget.toFixed(0)}°C - ${temperature.toFixed(0)}°C = <span class="font-bold text-xl text-blue-700">${deductionTargetTemp.toFixed(0)}°C</span></p>
+                <p class="text-gray-700"><strong>${cityData.name}, ${cityData.country}</strong> was <strong>${temp}°C</strong></p>
+                <p class="text-gray-700">Nieuw Doel: ${oldTarget}°C - ${temp}°C = <span class="font-bold text-blue-700">${deductionTargetTemp}°C</span></p>
             </div>
         </div>
     `;
+    resultDiv.classList.remove('hidden');
 
-    // UI en status reset
     deductionSelectedCityData = null;
     document.getElementById('deduction-city-input').value = '';
     document.getElementById('deduction-submit-button').disabled = true;
+    
+    // Verwijder marker
+    if (mapMarkers['deduction'] && mapInstances['deduction']) {
+        mapInstances['deduction'].removeLayer(mapMarkers['deduction']);
+        mapMarkers['deduction'] = null;
+    }
 
     updateDeductionDisplay();
     renderDeductionHistory();
 
-    if (deductionTargetTemp <= 0 || deductionTurnsLeft === 0) {
-        endDeductionGame();
-    }
+    if (deductionTargetTemp <= 0 || deductionTurnsLeft === 0) endDeductionGame();
+}
+
+function updateDeductionDisplay() {
+    document.getElementById('deduction-target-display').textContent = `${deductionTargetTemp}°C`;
+    document.getElementById('deduction-turns-display').textContent = `${deductionTurnsLeft}`;
+    document.getElementById('deduction-target-display').className = deductionTargetTemp < 0 ? "text-5xl font-black mt-1 tracking-tight text-red-500" : "text-5xl font-black mt-1 tracking-tight";
+}
+
+function renderDeductionHistory() {
+    const list = document.getElementById('deduction-history-log');
+    list.innerHTML = '';
+    deductionTurnHistory.slice().reverse().forEach((turn, i) => {
+        const li = document.createElement('li');
+        li.className = 'text-gray-700 text-sm flex justify-between p-2 bg-gray-50 border-l-4 border-red-400 rounded';
+        li.innerHTML = `<span>${turn.name}, ${turn.country}</span> <span class="font-bold">${turn.temp}°C</span>`;
+        list.appendChild(li);
+    });
+    document.getElementById('deduction-history-placeholder').style.display = deductionTurnHistory.length ? 'none' : 'block';
 }
 
 function endDeductionGame() {
@@ -390,60 +337,19 @@ function endDeductionGame() {
     document.getElementById('deduction-game-board').classList.add('hidden');
     document.getElementById('deduction-end-screen').classList.remove('hidden');
     document.getElementById('deduction-turn-result').classList.add('hidden');
-
+    
+    const title = document.getElementById('deduction-end-title');
+    const msg = document.getElementById('deduction-end-message');
     const score = deductionTargetTemp;
 
-    if (score === 0) {
-        document.getElementById('deduction-end-title').textContent = "🏆 PERFECTE SCORE! 🏆";
-        document.getElementById('deduction-end-title').className = "text-4xl font-black mb-4 text-green-600";
-        document.getElementById('deduction-end-message').textContent = "Je hebt precies 0°C bereikt! Meesterlijke strategie!";
-    } else if (score > 0) {
-        document.getElementById('deduction-end-title').textContent = "Einde Spel!";
-        document.getElementById('deduction-end-title').className = "text-4xl font-black mb-4 text-yellow-700";
-        document.getElementById('deduction-end-message').textContent = `De beurten zijn op. Je bent geëindigd met ${score.toFixed(0)}°C over. Score: ${score.toFixed(0)} punten.`;
-    } else {
-        document.getElementById('deduction-end-title').textContent = "🚨 Over De Schreef! 🚨";
-        document.getElementById('deduction-end-title').className = "text-4xl font-black mb-4 text-red-600";
-        document.getElementById('deduction-end-message').textContent = `Je hebt onder nul geëindigd met ${score.toFixed(0)}°C. Probeer de volgende keer beter in te schatten.`;
-    }
+    if (score === 0) { title.textContent = "🏆 PERFECT!"; title.className = "text-green-600 font-black text-4xl mb-4"; msg.textContent = "Precies 0 bereikt!"; }
+    else if (score > 0) { title.textContent = "Game Over"; title.className = "text-yellow-600 font-black text-4xl mb-4"; msg.textContent = `Score: ${score} punten.`; }
+    else { title.textContent = "Onder Nul!"; title.className = "text-red-600 font-black text-4xl mb-4"; msg.textContent = `Je eindigde op ${score}°C.`; }
 }
 
 // **********************************************
-// ********** 5. RADEN SPEL LOGICA **************
+// ********** 5. SPEL 2: RADEN LOGICA ***********
 // **********************************************
-
-function updateGuessingDisplay() {
-    const turnsDisplay = document.getElementById('guessing-turns-display');
-    const targetDisplay = document.getElementById('guessing-target-display');
-
-    turnsDisplay.textContent = `${guessingTurnsLeft}/${GUESSING_MAX_TURNS}`;
-    targetDisplay.textContent = gameActive ? "??" : `${guessingSecretNumber}°C`;
-    targetDisplay.classList.remove('text-green-600');
-}
-
-function renderGuessingHistory() {
-    const historyLog = document.getElementById('guessing-history-log');
-    const historyPlaceholder = document.getElementById('guessing-history-placeholder');
-
-    historyLog.innerHTML = '';
-    if (guessingTurnHistory.length === 0) {
-        historyPlaceholder.classList.remove('hidden');
-        return;
-    }
-    historyPlaceholder.classList.add('hidden');
-
-    guessingTurnHistory.slice().reverse().forEach((turn, index) => {
-        const listItem = document.createElement('li');
-        listItem.className = 'text-gray-700 text-sm flex justify-between items-center p-2 rounded-lg transition duration-100 bg-gray-50 hover:bg-gray-100 border-l-4 ' + turn.color;
-
-        listItem.innerHTML = `
-            <span class="font-bold text-gray-700 mr-2">Gok ${GUESSING_MAX_TURNS - guessingTurnsLeft - index}:</span>
-            <span>${turn.name}, ${turn.country}</span>
-            <span class="font-black ${turn.textColor}">${turn.guess}°C (${turn.feedback})</span>
-        `;
-        historyLog.appendChild(listItem);
-    });
-}
 
 function initializeGuessingGame() {
     guessingSecretNumber = Math.floor(Math.random() * (GUESSING_MAX_TARGET - GUESSING_MIN_TARGET + 1)) + GUESSING_MIN_TARGET;
@@ -452,9 +358,27 @@ function initializeGuessingGame() {
     guessingTurnHistory = [];
     guessingSelectedCityData = null;
 
-    document.getElementById('guessing-city-input').value = '';
-    document.getElementById('guessing-submit-button').disabled = true;
-    document.getElementById('guessing-submit-button').textContent = "Controleer Temperatuur";
+    const input = document.getElementById('guessing-city-input');
+    const btn = document.getElementById('guessing-submit-button');
+    const mapContainer = document.getElementById('guessing-map-container');
+    const modeDisplay = document.getElementById('guessing-mode-display');
+
+    input.value = '';
+    btn.disabled = true;
+    btn.textContent = "Controleer";
+
+    if (currentInputMode === 'map') {
+        modeDisplay.textContent = "Modus: Landkaart";
+        mapContainer.classList.remove('hidden');
+        input.readOnly = true;
+        input.placeholder = "Klik op de kaart om te gokken...";
+        setTimeout(() => initMap('guessing'), 100);
+    } else {
+        modeDisplay.textContent = "Modus: Typen";
+        mapContainer.classList.add('hidden');
+        input.readOnly = false;
+        input.placeholder = "Typ een stad...";
+    }
 
     updateGuessingDisplay();
     renderGuessingHistory();
@@ -465,69 +389,77 @@ function initializeGuessingGame() {
 
 async function handleGuessingTurn() {
     if (!gameActive || guessingTurnsLeft === 0 || !guessingSelectedCityData) return;
-
     const cityData = guessingSelectedCityData;
-    const guessingTurnResult = document.getElementById('guessing-turn-result');
+    const resultDiv = document.getElementById('guessing-turn-result');
 
-    const temperature = await fetchTemperature(cityData, guessingTurnResult);
-
-    if (temperature === null) {
+    // ** NIEUWE CHECK: DUPLICATE COUNTRY **
+    if (guessingTurnHistory.some(t => t.country === cityData.country)) {
+        resultDiv.innerHTML = `<span class="text-red-600 font-bold">❌ Je hebt al een stad in ${cityData.country} gekozen! Kies een ander land.</span>`;
+        resultDiv.classList.remove('hidden');
+        
+        guessingSelectedCityData = null;
+        document.getElementById('guessing-city-input').value = '';
         document.getElementById('guessing-submit-button').disabled = true;
+
+        if (mapMarkers['guessing'] && mapInstances['guessing']) {
+            mapInstances['guessing'].removeLayer(mapMarkers['guessing']);
+            mapMarkers['guessing'] = null;
+        }
         return;
     }
 
-    const guess = temperature;
-    let feedback = '';
-    let color = 'border-red-500';
-    let textColor = 'text-red-600';
+    const temp = await fetchTemperature(cityData, resultDiv);
+    if (temp === null) return;
 
-    if (guess === guessingSecretNumber) {
-        feedback = 'GEWONNEN!';
-        color = 'border-green-500';
-        textColor = 'text-green-600';
-        gameActive = false;
-    } else if (guess < guessingSecretNumber) {
-        feedback = 'HOGER';
-        color = 'border-yellow-500';
-        textColor = 'text-yellow-600';
-    } else {
-        feedback = 'LAGER';
-        color = 'border-blue-500';
-        textColor = 'text-blue-600';
-    }
+    let feedback = '', color = '', textCol = '';
+    if (temp === guessingSecretNumber) { feedback = 'GEWONNEN!'; color = 'border-green-500'; textCol = 'text-green-600'; gameActive = false; }
+    else if (temp < guessingSecretNumber) { feedback = 'HOGER'; color = 'border-yellow-500'; textCol = 'text-yellow-600'; }
+    else { feedback = 'LAGER'; color = 'border-blue-500'; textCol = 'text-blue-600'; }
 
     guessingTurnsLeft--;
+    guessingTurnHistory.push({ name: cityData.name, country: cityData.country, temp: temp, feedback: feedback, color: color, textCol: textCol });
 
-    guessingTurnHistory.push({
-        name: cityData.name, country: cityData.country,
-        guess: guess, feedback: feedback, color: color, textColor: textColor,
-        lat: cityData.lat, lon: cityData.lon
-    });
-
-    const emoji = guess > 25 ? '☀️' : guess < 5 ? '❄️' : '☁️';
-
-    guessingTurnResult.innerHTML = `
+    resultDiv.innerHTML = `
         <div class="result-content">
-            <span class="temp-icon">${emoji}</span>
+            <span class="temp-icon">${temp > 25 ? '☀️' : temp < 5 ? '❄️' : '☁️'}</span>
             <div>
-                <p class="text-sm text-gray-700 font-medium">Temperatuur van ${cityData.name}, ${cityData.country}: <span class="font-bold ${textColor}">${guess}°C</span></p>
-                <p class="text-sm text-gray-700 mt-1">Feedback: Het geheime getal is <span class="font-bold text-lg ${textColor}">${feedback}</span>.</p>
+                <p class="text-gray-700"><strong>${cityData.name}, ${cityData.country}</strong> is <span class="${textCol} font-bold">${temp}°C</span></p>
+                <p class="text-gray-700">Het getal is <strong class="${textCol}">${feedback}</strong></p>
             </div>
         </div>
     `;
+    resultDiv.classList.remove('hidden');
 
-    // FIX: HIER ZAT DE FOUT. Het is een variabele, geen HTML element.
     guessingSelectedCityData = null;
-    
     document.getElementById('guessing-city-input').value = '';
     document.getElementById('guessing-submit-button').disabled = true;
+
+    if (mapMarkers['guessing'] && mapInstances['guessing']) {
+        mapInstances['guessing'].removeLayer(mapMarkers['guessing']);
+        mapMarkers['guessing'] = null;
+    }
 
     updateGuessingDisplay();
     renderGuessingHistory();
 
-    if (!gameActive || guessingTurnsLeft === 0) {
-        endGuessingGame(guess === guessingSecretNumber);
-    }
+    if (!gameActive || guessingTurnsLeft === 0) endGuessingGame(temp === guessingSecretNumber);
+}
+
+function updateGuessingDisplay() {
+    document.getElementById('guessing-turns-display').textContent = `${guessingTurnsLeft}`;
+    document.getElementById('guessing-target-display').textContent = gameActive ? "??" : `${guessingSecretNumber}°C`;
+}
+
+function renderGuessingHistory() {
+    const list = document.getElementById('guessing-history-log');
+    list.innerHTML = '';
+    guessingTurnHistory.slice().reverse().forEach((turn, i) => {
+        const li = document.createElement('li');
+        li.className = `text-gray-700 text-sm flex justify-between p-2 bg-gray-50 border-l-4 rounded ${turn.color}`;
+        li.innerHTML = `<span>${turn.name}, ${turn.country}</span> <span class="font-bold ${turn.textCol}">${turn.temp}°C (${turn.feedback})</span>`;
+        list.appendChild(li);
+    });
+    document.getElementById('guessing-history-placeholder').style.display = guessingTurnHistory.length ? 'none' : 'block';
 }
 
 function endGuessingGame(won) {
@@ -536,85 +468,59 @@ function endGuessingGame(won) {
     document.getElementById('guessing-end-screen').classList.remove('hidden');
     document.getElementById('guessing-turn-result').classList.add('hidden');
 
-    const titleElement = document.getElementById('guessing-end-title');
-    const messageElement = document.getElementById('guessing-end-message');
+    const title = document.getElementById('guessing-end-title');
+    const msg = document.getElementById('guessing-end-message');
 
-    if (won) {
-        titleElement.textContent = "🥳 GEVONDEN! 🥳";
-        titleElement.className = "text-4xl font-black mb-4 text-green-600";
-        messageElement.textContent = `Je hebt het geheime nummer (${guessingSecretNumber}) geraden in ${GUESSING_MAX_TURNS - guessingTurnsLeft} gokken!`;
-    } else {
-        titleElement.textContent = "❌ GAME OVER ❌";
-        titleElement.className = "text-4xl font-black mb-4 text-red-600";
-        messageElement.textContent = `Je beurten zijn op. Het geheime nummer was ${guessingSecretNumber}.`;
-    }
-
-    document.getElementById('guessing-target-display').textContent = `${guessingSecretNumber}°C`;
-    if (won) document.getElementById('guessing-target-display').classList.add('text-green-600');
+    if (won) { title.textContent = "GEWONNEN!"; title.className = "text-green-600 font-black text-4xl mb-4"; msg.textContent = `Geraden! Het was ${guessingSecretNumber}°C.`; }
+    else { title.textContent = "GAME OVER"; title.className = "text-red-600 font-black text-4xl mb-4"; msg.textContent = `Helaas. Het was ${guessingSecretNumber}°C.`; }
 }
 
 // **********************************************
-// ********** 6. EVENT HANDLERS & INIT **********
+// ********** 6. NAVIGATIE & INIT ***************
 // **********************************************
 
-function showView(viewName) {
-    document.getElementById('main-menu').classList.add('hidden');
-    document.getElementById('game-container').classList.add('hidden');
+function showView(view) {
+    mainMenu.classList.add('hidden');
+    gameContainer.classList.add('hidden');
     document.getElementById('deduction-game').classList.add('hidden');
     document.getElementById('guessing-game').classList.add('hidden');
 
-    if (viewName === 'menu') {
-        document.getElementById('main-menu').classList.remove('hidden');
+    if (view === 'menu') {
+        mainMenu.classList.remove('hidden');
         checkApiStatus();
-    } else if (viewName === 'game') {
-        document.getElementById('game-container').classList.remove('hidden');
+    } else {
+        gameContainer.classList.remove('hidden');
     }
 }
 
 async function checkApiStatus() {
-    document.getElementById('main-menu').classList.remove('hidden');
-    const success = await testApiConnection();
-
-    if (success) {
-        document.getElementById('startGameButton').disabled = false;
-        document.getElementById('startGameGuessButton').disabled = false;
-    } else {
-        document.getElementById('startGameButton').disabled = true;
-        document.getElementById('startGameGuessButton').disabled = true;
-    }
+    const active = statusMessage.className.includes('green');
+    if (!active) await testApiConnection();
 }
 
-async function checkApiAndStart(gameType) {
-    const apiIsActive = statusMessage.classList.contains('bg-green-100');
-
-    if (apiIsActive || await testApiConnection()) {
+async function checkApiAndStart(gameType, inputMode) {
+    currentGameType = gameType;
+    currentInputMode = inputMode;
+    
+    if (await testApiConnection()) {
         showView('game');
         if (gameType === 'deduction') {
             document.getElementById('deduction-game').classList.remove('hidden');
             initializeDeductionGame();
-        } else if (gameType === 'guessing') {
+        } else {
             document.getElementById('guessing-game').classList.remove('hidden');
             initializeGuessingGame();
         }
     }
 }
 
-// --- Event Listeners toevoegen ---
+// Events
 document.getElementById('deduction-submit-button').addEventListener('click', handleDeductionTurn);
 document.getElementById('deduction-city-input').addEventListener('input', (e) => handleCityInput(e, 'deduction'));
-document.getElementById('deduction-city-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !document.getElementById('deduction-submit-button').disabled) {
-        handleDeductionTurn();
-    }
-});
+document.getElementById('deduction-city-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleDeductionTurn(); });
 
 document.getElementById('guessing-submit-button').addEventListener('click', handleGuessingTurn);
 document.getElementById('guessing-city-input').addEventListener('input', (e) => handleCityInput(e, 'guessing'));
-document.getElementById('guessing-city-input').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !document.getElementById('guessing-submit-button').disabled) {
-        handleGuessingTurn();
-    }
-});
+document.getElementById('guessing-city-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleGuessingTurn(); });
 
-// Start de initiële API-controle bij het laden van de pagina
 window.onload = checkApiStatus;
