@@ -93,8 +93,9 @@ async function fetchTemperature(cityData, resultElement) {
             // Als de datum overeenkomt met vandaag
             if (item.dt_txt.startsWith(todayDate)) {
                 // Is deze temperatuur hoger dan wat we tot nu toe hebben?
-                if (item.main.temp > maxTemp) {
-                    maxTemp = item.main.temp;
+                // Gebruik temp_max voor de zekerheid, al zijn temp en temp_max in de forecast vaak gelijk
+                if (item.main.temp_max > maxTemp) {
+                    maxTemp = item.main.temp_max;
                 }
                 found = true;
             }

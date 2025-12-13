@@ -1,163 +1,156 @@
 import random
 import time
-import requests 
+import requests
 
 # --- Configuratie ---
-# OPMERKING: Je gebruikt nu de API die registratie vereist om op stadsnaam te kunnen zoeken.
-# 1. HAAL EEN GRATIS API-SLEUTEL OP (bijv. van OpenWeatherMap)
 API_KEY = "b10dc274a5e56f6f6fc4fe68a7987217"
-WEATHER_API_URL = "http://api.openweathermap.org/data/2.5/weather" 
-MAX_TURNS = 5 # Aantal beurten (gokken)
+# LET OP: We gebruiken nu 'forecast' in plaats van 'weather'
+FORECAST_API_URL = "http://api.openweathermap.org/data/2.5/forecast"
+MAX_TURNS = 5 
 
 # --- API Test Functie ---
-
 def test_api_connection(api_key: str, api_url: str) -> bool:
-    """
-    Test de API-sleutel door een verzoek te sturen voor een bekende stad (Londen).
-    """
     print("\n🔬 API-verbinding testen...")
     test_params = {
         'q': "London",
         'appid': api_key,
-        'units': 'metric'
+        'units': 'metric',
+        'cnt': 1 # We hebben maar 1 resultaat nodig voor de test
     }
 
     try:
         response = requests.get(api_url, params=test_params, timeout=5)
-        
+
         if response.status_code == 200:
-            print("✅ API-sleutel is geldig en actief. Spel start nu met live data!")
+            print("✅ API-sleutel is geldig. Spel start met MAX dagtemperatuur!")
             return True
         elif response.status_code == 401:
-            print("❌ FOUT (401 Unauthorized): API-sleutel is ongeldig of nog niet actief.")
-            print("Wacht 10-30 minuten na aanmaken op de OpenWeatherMap website.")
+            print("❌ FOUT (401): API-sleutel ongeldig.")
             return False
         else:
-            # Vang andere foutcodes op (bv. 400 Bad Request, 500 Server Error)
-            print(f"❌ FOUT ({response.status_code}): Kan de API niet bereiken of ongeldige aanvraag.")
+            print(f"❌ FOUT ({response.status_code}): {response.text}")
             return False
 
     except requests.exceptions.RequestException as e:
-        print(f"❌ Netwerkfout: Kan geen verbinding maken met de API-service. Controleer je internetverbinding.")
+        print(f"❌ Netwerkfout: {e}")
         return False
 
 
-# --- API Functie ---
+# --- API Functie (AANGEPAST) ---
 
 def haal_temperatuur_op(stad: str) -> float | None:
     """
-    Haalt de live temperatuur (in Celsius) op voor een opgegeven stad.
-    Retourneert de temperatuur of None als de stad niet gevonden is of er een fout optreedt.
+    Haalt de MAXIMALE temperatuur van VANDAAG op voor een stad.
+    Gebruikt de forecast API.
     """
-    
     params = {
         'q': stad,
         'appid': API_KEY,
-        'units': 'metric' # Voor Celsius
+        'units': 'metric'
     }
 
-    print(f"🌍 Live weer ophalen voor {stad} via API...")
+    print(f"🌍 Weergegevens ophalen voor {stad}...")
 
     try:
-        response = requests.get(WEATHER_API_URL, params=params, timeout=5)
-        response.raise_for_status() 
+        response = requests.get(FORECAST_API_URL, params=params, timeout=5)
+        response.raise_for_status()
         data = response.json()
-        
-        temp = data['main']['temp']
-        print("✅ Live temperatuur geladen.")
-        return round(temp, 1) # Temperatuur in Celsius
 
-    except requests.exceptions.HTTPError as e:
+        # 1. Bepaal de datum van "vandaag" (eerste item in de lijst)
+        # De API geeft tijden in tekstformaat: "2023-10-25 15:00:00"
+        if not data['list']:
+            return None
+            
+        vandaag_datum_str = data['list'][0]['dt_txt'].split(' ')[0] # Bijv. "2023-10-25"
+
+        max_temp = -1000.0 # Start heel laag
+        found_today = False
+
+        # 2. Loop door de voorspellingen (3-uurs blokken)
+        for item in data['list']:
+            datum_deel = item['dt_txt'].split(' ')[0]
+            
+            # We kijken alleen naar blokken die op de datum van vandaag vallen
+            if datum_deel == vandaag_datum_str:
+                temp_in_blok = item['main']['temp_max'] # Pak de max temp binnen dit 3-uurs blok
+                if temp_in_blok > max_temp:
+                    max_temp = temp_in_blok
+                found_today = True
+            else:
+                # Zodra we een datum tegenkomen die niet vandaag is, kunnen we stoppen (optimalisatie)
+                break
+
+        if not found_today:
+            print(f"❌ Geen data voor vandaag gevonden voor {stad}.")
+            return None
+
+        print(f"✅ Max temperatuur voor vandaag gevonden.")
+        return round(max_temp, 1)
+
+    except requests.exceptions.HTTPError:
         if response.status_code == 404:
-            print(f"❌ Fout: De stad '{stad}' is niet gevonden. Probeer een andere stad.")
-        # 401 wordt al opgevangen in test_api_connection, maar blijft als vangnet.
-        elif response.status_code == 401:
-            print("❌ FOUT (401 Unauthorized): API-sleutel is ongeldig.")
+            print(f"❌ Stad '{stad}' niet gevonden.")
         else:
-            print(f"❌ Fout bij API-call: {e}")
+            print("❌ API Fout.")
         return None
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Netwerkfout: Kan geen verbinding maken met de API: {e}")
+    except Exception as e:
+        print(f"❌ Er ging iets mis: {e}")
         return None
 
 # --- Hoofd Spel Logica ---
 
 def main():
-    """
-    Hoofdfunctie om het Temperatuur Aftrek Spel te starten.
-    """
-    
-    # 0. Test de API-verbinding
-    if not test_api_connection(API_KEY, WEATHER_API_URL):
-        print("\nSpel kan niet starten omdat de API-verbinding mislukte.")
-        return # Stop het spel als de API niet werkt
+    if not test_api_connection(API_KEY, FORECAST_API_URL):
+        return
 
-    # 1. Initialiseer het spel
     target_temp = random.randint(50, 150)
     beurten_over = MAX_TURNS
-    
+
     print("\n" + "="*50)
-    print("🌡️ TEMPERATUUR AFTREK SPEL (5 BEURTEN) 🌡️")
-    print("DOEL: Eindig na 5 beurten zo dicht mogelijk bij 0°C (niet negatief).")
+    print("🌡️ TEMPERATUUR AFTREK SPEL (MAX TEMP EDITIE) 🌡️")
+    print("DOEL: Eindig na 5 beurten zo dicht mogelijk bij 0°C.")
+    print("De temperatuur die wordt afgetrokken is de HOOGSTE temp van vandaag.")
     print("="*50)
     print(f"HET START DOEL IS: {target_temp}°C")
     print("="*50)
-    
-    # 2. Start de spel-loop
+
     while beurten_over > 0 and target_temp > 0:
         print(f"\n--- BEURT {MAX_TURNS - beurten_over + 1} van {MAX_TURNS} ---")
         print(f"Nog af te trekken: {target_temp:.1f}°C")
-        
-        stad_naam = input("Voer een stad in om de temperatuur af te trekken (bv. 'Tokyo', 'Londen'): ").strip()
-        
+
+        stad_naam = input("Voer een stad in (bv. 'Madrid', 'Kaapstad'): ").strip()
+
         if not stad_naam:
-            print("Voer alsjeblieft een geldige stad in.")
             continue
-            
+
         temperatuur = haal_temperatuur_op(stad_naam)
-        
+
         if temperatuur is None:
-            continue # Probeer opnieuw
-            
-        # 3. Verwerk de worp
+            continue
+
         print(f"\nStad: {stad_naam}")
-        print(f"Huidige Temperatuur: {temperatuur}°C")
-        
+        print(f"Hoogste dagtemperatuur: {temperatuur}°C")
+
         nieuwe_target_temp = target_temp - temperatuur
-        
-        print(f"Aftreksom: {target_temp:.1f}°C - {temperatuur:.1f}°C = {nieuwe_target_temp:.1f}°C")
-        
+        print(f"Som: {target_temp:.1f}°C - {temperatuur:.1f}°C = {nieuwe_target_temp:.1f}°C")
+
         target_temp = nieuwe_target_temp
         beurten_over -= 1
-        
-        # Geef de speler feedback
-        if target_temp > 0 and beurten_over > 0:
-            print(f"Resterend doel: {target_temp:.1f}°C. Nog {beurten_over} beurten te gaan.")
-        elif target_temp == 0:
-            print("\n🎉 PERFECTE SCORE! Je hebt precies 0.0°C bereikt! 🎉")
+
+        if target_temp == 0:
+            print("\n🎉 PERFECTE SCORE! Precies 0.0°C! 🎉")
             break
         elif target_temp < 0:
-            print("\n🚨 OEPS! Je hebt onder 0.0°C gezeten.")
-            print(f"Eindresultaat: {target_temp:.1f}°C (Te Laag)")
+            print(f"\n🚨 OEPS! Onder nul: {target_temp:.1f}°C.")
             break
 
-    # 4. Eindresultaat
     print("\n" + "="*50)
-    print("EIND VAN HET SPEL")
-    print("="*50)
-    
     if target_temp == 0:
-        print("🏆 GEWONNEN! Je bent de meester van de weertrucs!")
+        print("🏆 GEWONNEN!")
     elif target_temp > 0:
-        print(f"De beurten zijn op. Je hebt nog {target_temp:.1f}°C over.")
-        print(f"Score: Hoe lager, hoe beter. {target_temp:.1f} punten.")
-    else: # target_temp < 0
-        print(f"❌ Je bent onder nul geëindigd met {target_temp:.1f}°C.")
-        print("Score: Te Laag. Probeer de volgende keer conservatiever te zijn!")
+        print(f"Eindstand: {target_temp:.1f}°C over.")
+    else:
+        print(f"Eindstand: {target_temp:.1f}°C (Onder nul).")
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print(f"\nFATALE FOUT: Er is iets misgegaan: {e}")
-        print("Zorg ervoor dat je 'requests' hebt geïnstalleerd in de virtuele omgeving.")
+    main()
