@@ -15,6 +15,10 @@ body {
     border-radius: 1.5rem;
 }
 
+#main-menu {
+    max-width: 900px; /* Breder voor 3 kolommen */
+}
+
 .button-primary {
     background-color: #0d9488;
     transition: all 0.2s ease-in-out;
@@ -78,4 +82,15 @@ body {
 .result-content {
     display: flex;
     align-items: center;
+}
+
+/* DUEL GAME SPECIFICS */
+.duel-card {
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.duel-card:hover {
+    transform: translateY(-4px);
+}
+.duel-card:active {
+    transform: translateY(0);
 }
