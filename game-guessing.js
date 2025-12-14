@@ -6,6 +6,7 @@ let turnsLeft = GUESSING_MAX_TURNS;
 let turnHistory = [];
 let selectedCityData = null;
 let isMapMode = false;
+let myChart = null;
 
 export function init(mode) {
     isMapMode = (mode === 'map');
@@ -109,7 +110,9 @@ function endGame(won) {
     document.getElementById('guessing-end-title').textContent = won ? "GEVONDEN!" : "HELAAS!";
     document.getElementById('guessing-end-message').textContent = `Het getal was ${secretNumber}°C.`;
 
-    // Stats berekenen
+    if(won) confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+
+    // Stats
     let maxTemp = -999;
     let minTemp = 999;
     let maxCity = "-";
@@ -130,4 +133,31 @@ function endGame(won) {
 
     document.getElementById('guess-stat-hot').textContent = maxCity !== "-" ? `${maxCity} (${maxTemp}°C)` : "-";
     document.getElementById('guess-stat-cold').textContent = minCity !== "-" ? `${minCity} (${minTemp}°C)` : "-";
+
+    // Grafiek
+    if(myChart) myChart.destroy();
+    const ctx = document.getElementById('guessing-chart');
+    
+    myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: turnHistory.map(t => t.name),
+            datasets: [{
+                label: 'Gekozen Temperatuur',
+                data: turnHistory.map(t => t.temp),
+                backgroundColor: turnHistory.map(t => t.temp === secretNumber ? '#22c55e' : '#3b82f6'),
+            }, {
+                type: 'line',
+                label: 'Doel',
+                data: Array(turnHistory.length).fill(secretNumber),
+                borderColor: '#ef4444',
+                borderDash: [5, 5],
+                pointRadius: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
 }

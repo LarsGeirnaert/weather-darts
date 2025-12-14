@@ -5,8 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lars' Weer Spelletjes Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
@@ -68,12 +73,11 @@
             <div id="deduction-end-screen" class="hidden text-center p-10 rounded-xl bg-white border-4 border-dashed border-gray-300">
                 <h2 id="deduction-end-title" class="text-4xl font-black mb-4"></h2>
                 <p id="deduction-end-message" class="text-xl mb-8 text-gray-700"></p>
-                
+                <div class="mb-8 w-full h-64"><canvas id="deduction-chart"></canvas></div>
                 <div class="bg-amber-50 rounded-xl p-4 border border-amber-200 mb-8 text-left">
                     <h3 class="font-bold text-amber-800 uppercase tracking-wider text-xs mb-3 border-b border-amber-200 pb-2">Jouw Route:</h3>
                     <ul id="deduction-summary-list" class="space-y-2 text-sm text-gray-700"></ul>
                 </div>
-
                 <button onclick="location.reload()" class="bg-purple-600 text-white p-3 px-6 rounded-full font-bold text-lg hover:bg-purple-700 transition duration-150 shadow-xl">Terug naar Menu</button>
             </div>
         </div>
@@ -106,18 +110,11 @@
             <div id="guessing-end-screen" class="hidden text-center p-8 rounded-xl bg-white border-4 border-dashed border-gray-300 max-w-lg mx-auto">
                 <h2 id="guessing-end-title" class="text-4xl font-black mb-2"></h2>
                 <p id="guessing-end-message" class="text-xl mb-6 text-gray-700"></p>
-                
+                <div class="mb-6 w-full h-56"><canvas id="guessing-chart"></canvas></div>
                 <div class="grid grid-cols-2 gap-2 mb-4">
-                    <div class="bg-blue-50 p-2 rounded border border-blue-200">
-                        <p class="text-xs text-blue-600 uppercase font-bold">Koudste gok</p>
-                        <p id="guess-stat-cold" class="font-bold text-lg">-</p>
-                    </div>
-                    <div class="bg-red-50 p-2 rounded border border-red-200">
-                        <p class="text-xs text-red-600 uppercase font-bold">Warmste gok</p>
-                        <p id="guess-stat-hot" class="font-bold text-lg">-</p>
-                    </div>
+                    <div class="bg-blue-50 p-2 rounded border border-blue-200"><p class="text-xs text-blue-600 uppercase font-bold">Koudste gok</p><p id="guess-stat-cold" class="font-bold text-lg">-</p></div>
+                    <div class="bg-red-50 p-2 rounded border border-red-200"><p class="text-xs text-red-600 uppercase font-bold">Warmste gok</p><p id="guess-stat-hot" class="font-bold text-lg">-</p></div>
                 </div>
-
                 <div class="bg-gray-50 rounded-xl p-4 border border-gray-200 mb-8 text-left">
                     <h3 class="font-bold text-gray-500 uppercase tracking-wider text-xs mb-3 border-b pb-2">Alle gokken:</h3>
                     <ul id="guessing-summary-list" class="space-y-2 text-sm"></ul>
@@ -140,13 +137,32 @@
             </div>
 
             <div id="duel-board" class="hidden space-y-4">
-                <div class="flex justify-between items-center px-2 font-black text-xl mb-4">
-                    <div class="p-3 bg-blue-100 text-blue-800 rounded-xl border-2 border-blue-200 shadow-sm">Jij: <span id="my-score">100</span></div>
-                    <div class="text-gray-400 text-sm font-bold uppercase tracking-widest flex flex-col items-center">
-                        <span>Ronde</span>
-                        <span id="round-display" class="text-2xl text-gray-800">1</span>
+                
+                <div class="flex justify-between items-end px-1 mb-2 font-bold text-gray-700">
+                    <div class="w-5/12">
+                        <div class="flex justify-between text-xs mb-1 uppercase tracking-wider text-blue-700">
+                            <span>Jij</span>
+                            <span id="p1-score-text">100</span>
+                        </div>
+                        <div class="hp-track">
+                            <div id="p1-hp-bar" class="hp-fill hp-blue" style="width: 100%;"></div>
+                        </div>
                     </div>
-                    <div class="p-3 bg-red-100 text-red-800 rounded-xl border-2 border-red-200 shadow-sm">Tegen: <span id="opp-score">100</span></div>
+
+                    <div class="w-2/12 text-center pb-1">
+                        <div class="text-[10px] text-gray-400 uppercase tracking-widest">Ronde</div>
+                        <div id="round-display" class="text-2xl font-black text-gray-800 leading-none">1</div>
+                    </div>
+
+                    <div class="w-5/12">
+                        <div class="flex justify-between text-xs mb-1 uppercase tracking-wider text-red-700">
+                            <span id="p2-score-text">100</span>
+                            <span>Tegenstander</span>
+                        </div>
+                        <div class="hp-track">
+                            <div id="p2-hp-bar" class="hp-fill hp-fill-right hp-red" style="width: 100%;"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="duel-play-area">
@@ -174,7 +190,14 @@
                             <p class="font-bold text-gray-500">Tegenstander</p><p id="p2-result-city" class="font-semibold text-lg">...</p><p id="p2-result-temp" class="text-xl font-bold">???</p><p id="p2-diff" class="text-xs text-gray-500"></p>
                         </div>
                     </div>
+                    
                     <div class="mb-6 p-3 bg-red-50 border border-red-100 rounded text-red-800 text-sm"><p id="damage-explanation" class="font-mono">Berekenen...</p></div>
+                    
+                    <div class="result-hp-wrapper">
+                        <div id="result-hp-bar" class="result-hp-fill" style="width: 100%;"></div>
+                        <div id="result-hp-text" class="result-hp-text">100 HP</div>
+                    </div>
+
                     <p id="winner-banner" class="text-xl font-black text-green-600 mb-4"></p>
                     <button id="next-round-btn" class="bg-purple-600 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-purple-700 transition transform hover:-translate-y-1">Volgende Ronde ➡️</button>
                     <button id="game-over-btn" onclick="location.reload()" class="hidden bg-gray-800 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-black transition transform hover:-translate-y-1">Terug naar Menu 🏠</button>
@@ -182,12 +205,11 @@
 
                 <div id="duel-summary" class="hidden p-6 bg-white border-4 border-dashed border-purple-200 rounded-xl">
                     <h2 id="summary-title" class="text-3xl font-black text-center mb-6 text-purple-700">Spel Afgelopen!</h2>
-                    
+                    <div class="mb-6 w-full h-64"><canvas id="duel-chart"></canvas></div>
                     <div class="bg-gray-50 rounded-xl p-4 border border-gray-200 mb-6 text-left">
                         <h3 class="font-bold text-gray-500 uppercase tracking-wider text-xs mb-3 border-b pb-2">Wedstrijdverloop:</h3>
                         <ul id="summary-list" class="space-y-3 text-sm"></ul>
                     </div>
-
                     <button onclick="location.reload()" class="w-full bg-gray-800 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-black transition">Terug naar Menu 🏠</button>
                 </div>
             </div>

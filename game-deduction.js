@@ -2,14 +2,17 @@ import { DEDUCTION_MAX_TURNS, DEDUCTION_MIN_TARGET, DEDUCTION_MAX_TARGET } from 
 import { fetchTemperature, initMap, setupCityInput } from './utils.js';
 
 let targetTemp = 0;
+let initialTarget = 0;
 let turnsLeft = DEDUCTION_MAX_TURNS;
 let turnHistory = [];
 let selectedCityData = null;
 let isMapMode = false;
+let myChart = null; // Voor de grafiek
 
 export function init(mode) {
     isMapMode = (mode === 'map');
     targetTemp = Math.floor(Math.random() * (DEDUCTION_MAX_TARGET - DEDUCTION_MIN_TARGET + 1)) + DEDUCTION_MIN_TARGET;
+    initialTarget = targetTemp;
     turnsLeft = DEDUCTION_MAX_TURNS;
     turnHistory = [];
     selectedCityData = null;
@@ -106,11 +109,14 @@ function endGame() {
     const msg = document.getElementById('deduction-end-message');
     const title = document.getElementById('deduction-end-title');
     
-    if (targetTemp === 0) { title.textContent = "🏆 PERFECT!"; msg.textContent = "Precies 0!"; }
+    if (targetTemp === 0) { 
+        title.textContent = "🏆 PERFECT!"; msg.textContent = "Precies 0!"; 
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+    }
     else if (targetTemp > 0) { title.textContent = "Game Over"; msg.textContent = `Score: ${targetTemp}`; }
     else { title.textContent = "Onder Nul!"; msg.textContent = `Eind: ${targetTemp}`; }
 
-    // Summary List vullen
+    // Lijst vullen
     const list = document.getElementById('deduction-summary-list');
     list.innerHTML = '';
     turnHistory.forEach((turn, index) => {
@@ -118,5 +124,34 @@ function endGame() {
         li.className = "flex justify-between border-b border-gray-100 pb-1";
         li.innerHTML = `<span>${index+1}. ${turn.name} (${turn.temp}°C)</span> <span>Over: <strong>${turn.remaining}°C</strong></span>`;
         list.appendChild(li);
+    });
+
+    // Grafiek Tekenen
+    if(myChart) myChart.destroy();
+    
+    const ctx = document.getElementById('deduction-chart');
+    const labels = ['Start', ...turnHistory.map((_, i) => `Beurt ${i+1}`)];
+    const dataPoints = [initialTarget, ...turnHistory.map(t => t.remaining)];
+
+    myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Temperatuur tot 0',
+                data: dataPoints,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: false, suggestedMin: 0 }
+            }
+        }
     });
 }

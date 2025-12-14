@@ -1,11 +1,12 @@
-import { db, ref, set, onValue, update } from './firebase.js'; // Let op: 'push' is hier niet meer nodig
+import { db, ref, set, onValue, update } from './firebase.js';
 import { fetchTemperature, setupCityInput } from './utils.js';
 
 let currentRoomId = null;
 let playerRole = null; 
 let duelCityData = null;
 let myUsedCities = new Set();
-let isProcessingTurn = false; // Voorkomt dubbele berekeningen
+let isProcessingTurn = false;
+let myChart = null; 
 
 export function init() {
     const input = document.getElementById('duel-city-input');
@@ -79,14 +80,21 @@ function waitForGameStart() {
         document.getElementById('duel-target-display').textContent = `${data.targetTemp}°C`;
         document.getElementById('round-display').textContent = data.round;
         
+        // HP BARS (Bovenaan)
         if (data.scores) {
             const myScore = playerRole === 'host' ? data.scores.host : data.scores.guest;
             const oppScore = playerRole === 'host' ? data.scores.guest : data.scores.host;
-            document.getElementById('my-score').textContent = Math.round(myScore);
-            document.getElementById('opp-score').textContent = Math.round(oppScore);
+            
+            document.getElementById('p1-score-text').textContent = Math.round(myScore);
+            document.getElementById('p2-score-text').textContent = Math.round(oppScore);
+
+            const myPct = Math.max(0, Math.min(100, myScore));
+            const oppPct = Math.max(0, Math.min(100, oppScore));
+
+            document.getElementById('p1-hp-bar').style.width = `${myPct}%`;
+            document.getElementById('p2-hp-bar').style.width = `${oppPct}%`;
         }
 
-        // Haal gebruikte steden op uit historie (tegen refreshen)
         if (data.history) {
             Object.values(data.history).forEach(item => {
                 const myMove = playerRole === 'host' ? item.host : item.guest;
@@ -94,9 +102,7 @@ function waitForGameStart() {
             });
         }
 
-        // --- STATE HANDLING ---
         if (data.roundState === 'results') {
-             // Reset de flag zodat we volgende ronde weer kunnen rekenen
              isProcessingTurn = false;
 
              if (data.host?.temp !== undefined && data.guest?.temp !== undefined) {
@@ -123,7 +129,6 @@ function waitForGameStart() {
         } else if (data.roundState === 'game_over') {
              showGameSummary(data);
         } else {
-             // State = 'guessing'
              isProcessingTurn = false;
              
              document.getElementById('duel-result').classList.add('hidden');
@@ -150,10 +155,9 @@ function waitForGameStart() {
              }
         }
 
-        // Host Calculation - ALLEEN als we nog niet bezig zijn
         if (playerRole === 'host' && data.roundState === 'guessing' && !isProcessingTurn) {
             if (data.host?.temp !== undefined && data.guest?.temp !== undefined) {
-                isProcessingTurn = true; // Blokkeer dubbele berekening
+                isProcessingTurn = true;
                 calculateAndSaveScores(data);
             }
         }
@@ -214,8 +218,6 @@ function calculateAndSaveScores(data) {
     const hostDiff = Math.abs(target - hostData.temp);
     const guestDiff = Math.abs(target - guestData.temp);
 
-    // FIX: Gebruik een specifieke key 'round_X' ipv push()
-    // Dit voorkomt dat dezelfde ronde 100x in de lijst komt
     const historyItem = {
         round: round,
         target: target,
@@ -236,7 +238,6 @@ function calculateAndSaveScores(data) {
         nextState = 'game_over';
     }
 
-    // Alles in één update sturen
     const updates = {};
     updates[`rooms/${currentRoomId}/scores`] = newScores;
     updates[`rooms/${currentRoomId}/roundState`] = nextState;
@@ -254,7 +255,6 @@ function showDuelResults(data) {
     const target = data.targetTemp;
     const round = data.round;
 
-    // Check of data compleet is voor we rekenen
     const myTemp = myData ? myData.temp : 0;
     const oppTemp = oppData ? oppData.temp : 0;
 
@@ -291,6 +291,13 @@ function showDuelResults(data) {
         explanation.textContent = "Even ver weg. Niemand verliest punten.";
     }
 
+    // --- NIEUW: UPDATE DE RESULT HP BAR ---
+    const myScore = playerRole === 'host' ? data.scores.host : data.scores.guest;
+    const myPct = Math.max(0, Math.min(100, myScore));
+    document.getElementById('result-hp-bar').style.width = `${myPct}%`;
+    document.getElementById('result-hp-text').textContent = `${Math.round(myScore)} HP`;
+
+    // GAME OVER KNOP
     const nextBtn = document.getElementById('next-round-btn');
     const gameOverBtn = document.getElementById('game-over-btn');
 
@@ -331,6 +338,7 @@ function showGameSummary(data) {
     if (myScore > 0) {
         title.textContent = "🏆 GEWONNEN!";
         title.className = "text-4xl font-black text-center mb-6 text-green-600";
+        confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
     } else {
         title.textContent = "💀 GAME OVER";
         title.className = "text-4xl font-black text-center mb-6 text-red-600";
@@ -343,12 +351,34 @@ function showGameSummary(data) {
         const list = document.getElementById('summary-list');
         list.innerHTML = '';
 
-        // Sorteer de rondes netjes op volgorde (round_1, round_2...)
         const sortedHistory = Object.values(history).sort((a, b) => a.round - b.round);
+        
+        let currentHostScore = 100;
+        let currentGuestScore = 100;
+        
+        const hostScores = [100];
+        const guestScores = [100];
+        const roundLabels = ['Start'];
 
         sortedHistory.forEach(item => {
             const myMove = playerRole === 'host' ? item.host : item.guest;
             const oppMove = playerRole === 'host' ? item.guest : item.host;
+
+            const hostDiff = item.host.diff;
+            const guestDiff = item.guest.diff;
+            const round = item.round;
+
+            if (hostDiff < guestDiff) {
+                const dmg = (guestDiff - hostDiff) * round;
+                currentGuestScore -= dmg;
+            } else if (guestDiff < hostDiff) {
+                const dmg = (hostDiff - guestDiff) * round;
+                currentHostScore -= dmg;
+            }
+
+            hostScores.push(Math.max(0, currentHostScore));
+            guestScores.push(Math.max(0, currentGuestScore));
+            roundLabels.push(`Ronde ${round}`);
 
             const li = document.createElement('li');
             li.className = "bg-gray-100 p-2 rounded border border-gray-200";
@@ -365,5 +395,47 @@ function showGameSummary(data) {
             `;
             list.appendChild(li);
         });
+
+        const myScoreData = playerRole === 'host' ? hostScores : guestScores;
+        const oppScoreData = playerRole === 'host' ? guestScores : hostScores;
+
+        if(myChart) myChart.destroy();
+        const ctx = document.getElementById('duel-chart');
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: roundLabels,
+                datasets: [
+                    {
+                        label: 'Mijn Score',
+                        data: myScoreData,
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    },
+                    {
+                        label: 'Tegenstander Score',
+                        data: oppScoreData,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        suggestedMax: 100,
+                        title: { display: true, text: 'HP' }
+                    }
+                }
+            }
+        });
+
     }, { onlyOnce: true });
 }
