@@ -4,287 +4,196 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lars' Weer Spelletjes Hub</title>
-
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
 
     <div id="main-menu" class="container-card w-full p-8 rounded-3xl border border-gray-100 text-center">
-        <h1 class="text-5xl font-black text-gray-900 mb-2 tracking-tight">
-            Weer Spelletjes Hub
-        </h1>
+        <h1 class="text-5xl font-black text-gray-900 mb-2 tracking-tight">Weer Spelletjes Hub</h1>
         <p class="text-lg text-gray-500 mb-8">Kies je spel en speelwijze:</p>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-
             <div class="space-y-3 p-4 bg-teal-50 rounded-2xl border border-teal-100">
                 <h2 class="text-xl font-bold text-teal-800 mb-2">1. Temp. Aftrekken</h2>
-                <button onclick="checkApiAndStart('deduction', 'text')" class="menu-button w-full text-white text-sm">
-                    <span class="mr-2">🔤</span> Met Stadsnaam
-                </button>
-                <button onclick="checkApiAndStart('deduction', 'map')" class="menu-button w-full text-white text-sm bg-indigo-500">
-                    <span class="mr-2">🗺️</span> Met Landkaart
-                </button>
+                <button id="btn-deduction-text" class="menu-button w-full text-white text-sm"><span class="mr-2">🔤</span> Met Stadsnaam</button>
+                <button id="btn-deduction-map" class="menu-button w-full text-white text-sm bg-indigo-500"><span class="mr-2">🗺️</span> Met Landkaart</button>
             </div>
-
             <div class="space-y-3 p-4 bg-purple-50 rounded-2xl border border-purple-100">
                 <h2 class="text-xl font-bold text-purple-800 mb-2">2. Temp. Raden</h2>
-                <button onclick="checkApiAndStart('guessing', 'text')" class="menu-button w-full text-white text-sm">
-                    <span class="mr-2">🔤</span> Met Stadsnaam
-                </button>
-                <button onclick="checkApiAndStart('guessing', 'map')" class="menu-button w-full text-white text-sm bg-indigo-500">
-                    <span class="mr-2">🗺️</span> Met Landkaart
-                </button>
+                <button id="btn-guessing-text" class="menu-button w-full text-white text-sm"><span class="mr-2">🔤</span> Met Stadsnaam</button>
+                <button id="btn-guessing-map" class="menu-button w-full text-white text-sm bg-indigo-500"><span class="mr-2">🗺️</span> Met Landkaart</button>
             </div>
-
             <div class="space-y-3 p-4 bg-orange-50 rounded-2xl border border-orange-100">
                 <h2 class="text-xl font-bold text-orange-800 mb-2">3. Online Duel ⚔️</h2>
                 <p class="text-xs text-gray-500 mb-2">Wie zit het dichtst bij?</p>
-                <button onclick="checkApiAndStart('duel', 'text')" class="menu-button w-full text-white text-sm bg-orange-500 shadow-[0_4px_#c2410c] hover:translate-y-[-2px] hover:shadow-[0_6px_#c2410c] active:shadow-[0_2px_#c2410c] active:translate-y-[2px]">
-                    <span class="mr-2">⚔️</span> Start Duel
-                </button>
+                <button id="btn-duel-text" class="menu-button w-full text-white text-sm bg-orange-500 shadow-[0_4px_#c2410c] hover:translate-y-[-2px] hover:shadow-[0_6px_#c2410c] active:shadow-[0_2px_#c2410c] active:translate-y-[2px]"><span class="mr-2">⚔️</span> Start Duel</button>
             </div>
-
         </div>
-
-        <div id="status-message" class="text-center p-3 mt-8 rounded-lg font-semibold bg-gray-100 text-gray-600 text-sm">
-            Initialiseren...
-        </div>
+        <div id="status-message" class="text-center p-3 mt-8 rounded-lg font-semibold bg-gray-100 text-gray-600 text-sm">Initialiseren...</div>
     </div>
 
     <div id="game-container" class="container-card w-full p-8 rounded-3xl border border-gray-100 hidden">
-
-        <button onclick="showView('menu')" class="mb-6 text-blue-600 hover:text-blue-800 font-bold flex items-center transition-colors">
+        <button id="back-to-menu" class="mb-6 text-blue-600 hover:text-blue-800 font-bold flex items-center transition-colors">
             <span class="text-2xl mr-2">◀</span> Terug naar Hoofdmenu
         </button>
 
         <div id="deduction-game" class="hidden">
-            <h1 class="text-3xl font-black text-center text-gray-900 mb-6">
-                Temperatuur Aftrek Spel
-            </h1>
-
-            <div id="deduction-game-board" class="space-y-6 hidden">
+             <h1 class="text-3xl font-black text-center text-gray-900 mb-6">Temperatuur Aftrek Spel</h1>
+             <div id="deduction-game-board" class="space-y-6 hidden">
                 <div class="p-4 bg-amber-50 rounded-xl border-2 border-amber-300 text-center shadow-inner">
-                    <p class="text-base font-medium text-amber-800 flex items-center justify-center">
-                        <span class="mr-2 text-xl">🎯</span> DOEL: Eindig na 5 beurten zo dicht mogelijk bij 0°C.
-                    </p>
-                    <p class="text-sm mt-1 font-bold text-red-600 uppercase">
-                        LET OP: Maximaal 1 stad per land!
-                    </p>
-                    <p id="deduction-mode-display" class="text-xs font-bold uppercase tracking-widest text-gray-400 mt-2">
-                        Modus: ??
-                    </p>
+                    <p class="text-base font-medium text-amber-800 flex items-center justify-center"><span class="mr-2 text-xl">🎯</span> DOEL: Eindig na 5 beurten zo dicht mogelijk bij 0°C.</p>
+                    <p class="text-sm mt-1 font-bold text-red-600 uppercase">LET OP: Maximaal 1 stad per land!</p>
+                    <p id="deduction-mode-display" class="text-xs font-bold uppercase tracking-widest text-gray-400 mt-2">Modus: ??</p>
                 </div>
-
                 <div class="score-panel flex justify-between items-center p-6 text-white rounded-xl shadow-2xl transition duration-300">
-                    <div>
-                        <p class="text-sm font-medium opacity-80">Nog af te trekken:</p>
-                        <p id="deduction-target-display" class="text-5xl font-black mt-1 tracking-tight"></p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm font-medium opacity-80">Beurten:</p>
-                        <p id="deduction-turns-display" class="text-4xl font-black mt-1 tracking-tight"></p>
-                    </div>
+                    <div><p class="text-sm font-medium opacity-80">Nog af te trekken:</p><p id="deduction-target-display" class="text-5xl font-black mt-1 tracking-tight"></p></div>
+                    <div class="text-right"><p class="text-sm font-medium opacity-80">Beurten:</p><p id="deduction-turns-display" class="text-4xl font-black mt-1 tracking-tight"></p></div>
                 </div>
-
-                <div id="deduction-map-container" class="hidden mt-6 w-full h-72 rounded-xl border-2 border-amber-300 shadow-inner overflow-hidden relative z-0">
-                    <div id="deduction-map" class="w-full h-full"></div>
-                </div>
-
+                <div id="deduction-map-container" class="hidden mt-6 w-full h-72 rounded-xl border-2 border-amber-300 shadow-inner overflow-hidden relative z-0"><div id="deduction-map" class="w-full h-full"></div></div>
                 <div class="mt-6 space-y-4 relative">
                     <input type="text" id="deduction-city-input" placeholder="Voer een stad in..." class="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 shadow-inner">
                     <div id="deduction-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden"></div>
-                    <button id="deduction-submit-button" class="w-full button-primary text-white p-4 rounded-xl font-extrabold text-xl disabled:bg-gray-400 disabled:shadow-none disabled:transform-none" disabled>
-                        Trek Temperatuur Af
-                    </button>
+                    <button id="deduction-submit-button" class="w-full button-primary text-white p-4 rounded-xl font-extrabold text-xl disabled:bg-gray-400 disabled:shadow-none disabled:transform-none" disabled>Trek Temperatuur Af</button>
                 </div>
-
                 <div id="deduction-turn-result" class="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-xl shadow-md hidden transition-all duration-300"></div>
-
                 <div id="deduction-history-container" class="mt-8 pt-4 border-t border-gray-300">
-                    <h3 class="text-lg font-bold text-gray-700 mb-3 flex items-center">
-                        <span class="mr-2 text-xl">📜</span> Historie:
-                    </h3>
-                    <div id="deduction-history-log-container" class="bg-white rounded-xl border border-gray-300 shadow-inner p-4">
-                        <ul id="deduction-history-log" class="space-y-3"></ul>
-                        <p id="deduction-history-placeholder" class="text-sm text-gray-500">Nog geen steden gekozen.</p>
-                    </div>
+                    <h3 class="text-lg font-bold text-gray-700 mb-3 flex items-center"><span class="mr-2 text-xl">📜</span> Historie:</h3>
+                    <div id="deduction-history-log-container" class="bg-white rounded-xl border border-gray-300 shadow-inner p-4"><ul id="deduction-history-log" class="space-y-3"></ul><p id="deduction-history-placeholder" class="text-sm text-gray-500">Nog geen steden gekozen.</p></div>
                 </div>
             </div>
-
+            
             <div id="deduction-end-screen" class="hidden text-center p-10 rounded-xl bg-white border-4 border-dashed border-gray-300">
                 <h2 id="deduction-end-title" class="text-4xl font-black mb-4"></h2>
                 <p id="deduction-end-message" class="text-xl mb-8 text-gray-700"></p>
-                <button onclick="location.reload()" class="bg-purple-600 text-white p-3 px-6 rounded-full font-bold text-lg hover:bg-purple-700 transition duration-150 shadow-xl">
-                    Terug naar Menu
-                </button>
+                
+                <div class="bg-amber-50 rounded-xl p-4 border border-amber-200 mb-8 text-left">
+                    <h3 class="font-bold text-amber-800 uppercase tracking-wider text-xs mb-3 border-b border-amber-200 pb-2">Jouw Route:</h3>
+                    <ul id="deduction-summary-list" class="space-y-2 text-sm text-gray-700"></ul>
+                </div>
+
+                <button onclick="location.reload()" class="bg-purple-600 text-white p-3 px-6 rounded-full font-bold text-lg hover:bg-purple-700 transition duration-150 shadow-xl">Terug naar Menu</button>
             </div>
         </div>
 
         <div id="guessing-game" class="hidden">
-            <h1 class="text-3xl font-black text-center text-gray-900 mb-6">
-                Temperatuur Raden
-            </h1>
-
-            <div id="guessing-game-board" class="space-y-6 hidden">
+             <h1 class="text-3xl font-black text-center text-gray-900 mb-6">Temperatuur Raden</h1>
+             <div id="guessing-game-board" class="space-y-6 hidden">
                 <div class="p-4 bg-teal-50 rounded-xl border-2 border-teal-300 text-center shadow-inner">
-                    <p class="text-base font-medium text-teal-800 flex items-center justify-center">
-                        <span class="mr-2 text-xl">❓</span> DOEL: Raad het getal (5-30) in 7 beurten.
-                    </p>
-                    <p class="text-sm mt-1 font-bold text-teal-700 uppercase">
-                        LET OP: Maximaal 1 stad per land!
-                    </p>
-                    <p id="guessing-mode-display" class="text-xs font-bold uppercase tracking-widest text-gray-400 mt-2">
-                        Modus: ??
-                    </p>
+                    <p class="text-base font-medium text-teal-800 flex items-center justify-center"><span class="mr-2 text-xl">❓</span> DOEL: Raad het getal (5-30) in 7 beurten.</p>
+                    <p class="text-sm mt-1 font-bold text-teal-700 uppercase">LET OP: Maximaal 1 stad per land!</p>
+                    <p id="guessing-mode-display" class="text-xs font-bold uppercase tracking-widest text-gray-400 mt-2">Modus: ??</p>
                 </div>
-
                 <div class="score-panel flex justify-between items-center p-6 text-white rounded-xl shadow-2xl transition duration-300">
-                    <div>
-                        <p class="text-sm font-medium opacity-80">Geheim Getal:</p>
-                        <p id="guessing-target-display" class="text-5xl font-black mt-1 tracking-tight">??</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-sm font-medium opacity-80">Gokken:</p>
-                        <p id="guessing-turns-display" class="text-4xl font-black mt-1 tracking-tight"></p>
-                    </div>
+                    <div><p class="text-sm font-medium opacity-80">Geheim Getal:</p><p id="guessing-target-display" class="text-5xl font-black mt-1 tracking-tight">??</p></div>
+                    <div class="text-right"><p class="text-sm font-medium opacity-80">Gokken:</p><p id="guessing-turns-display" class="text-4xl font-black mt-1 tracking-tight"></p></div>
                 </div>
-
-                <div id="guessing-map-container" class="hidden mt-6 w-full h-72 rounded-xl border-2 border-teal-300 shadow-inner overflow-hidden relative z-0">
-                    <div id="guessing-map" class="w-full h-full"></div>
-                </div>
-
+                <div id="guessing-map-container" class="hidden mt-6 w-full h-72 rounded-xl border-2 border-teal-300 shadow-inner overflow-hidden relative z-0"><div id="guessing-map" class="w-full h-full"></div></div>
                 <div class="mt-6 space-y-4 relative">
                     <input type="text" id="guessing-city-input" placeholder="Voer een stad in..." class="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150 shadow-inner">
                     <div id="guessing-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden"></div>
-                    <button id="guessing-submit-button" class="w-full button-primary text-white p-4 rounded-xl font-extrabold text-xl disabled:bg-gray-400 disabled:shadow-none disabled:transform-none" disabled>
-                        Controleer Temperatuur
-                    </button>
+                    <button id="guessing-submit-button" class="w-full button-primary text-white p-4 rounded-xl font-extrabold text-xl disabled:bg-gray-400 disabled:shadow-none disabled:transform-none" disabled>Controleer Temperatuur</button>
                 </div>
-
                 <div id="guessing-turn-result" class="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-xl shadow-md hidden transition-all duration-300"></div>
-
                 <div id="guessing-history-container" class="mt-8 pt-4 border-t border-gray-300">
-                    <h3 class="text-lg font-bold text-gray-700 mb-3 flex items-center">
-                        <span class="mr-2 text-xl">🧐</span> Eerdere Gokken:
-                    </h3>
-                    <div id="guessing-history-log-container" class="bg-white rounded-xl border border-gray-300 shadow-inner p-4">
-                        <ul id="guessing-history-log" class="space-y-3"></ul>
-                        <p id="guessing-history-placeholder" class="text-sm text-gray-500">Nog geen gokken gedaan.</p>
-                    </div>
+                    <h3 class="text-lg font-bold text-gray-700 mb-3 flex items-center"><span class="mr-2 text-xl">🧐</span> Eerdere Gokken:</h3>
+                    <div id="guessing-history-log-container" class="bg-white rounded-xl border border-gray-300 shadow-inner p-4"><ul id="guessing-history-log" class="space-y-3"></ul><p id="guessing-history-placeholder" class="text-sm text-gray-500">Nog geen gokken gedaan.</p></div>
                 </div>
             </div>
-
+            
             <div id="guessing-end-screen" class="hidden text-center p-8 rounded-xl bg-white border-4 border-dashed border-gray-300 max-w-lg mx-auto">
                 <h2 id="guessing-end-title" class="text-4xl font-black mb-2"></h2>
                 <p id="guessing-end-message" class="text-xl mb-6 text-gray-700"></p>
-
-                <div class="bg-gray-50 rounded-xl p-4 border border-gray-200 mb-8 text-left">
-                    <h3 class="font-bold text-gray-500 uppercase tracking-wider text-xs mb-3 border-b pb-2">
-                        Samenvatting van je gokken:
-                    </h3>
-                    <ul id="guessing-summary-list" class="space-y-2 text-sm">
-                    </ul>
+                
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <div class="bg-blue-50 p-2 rounded border border-blue-200">
+                        <p class="text-xs text-blue-600 uppercase font-bold">Koudste gok</p>
+                        <p id="guess-stat-cold" class="font-bold text-lg">-</p>
+                    </div>
+                    <div class="bg-red-50 p-2 rounded border border-red-200">
+                        <p class="text-xs text-red-600 uppercase font-bold">Warmste gok</p>
+                        <p id="guess-stat-hot" class="font-bold text-lg">-</p>
+                    </div>
                 </div>
 
-                <button onclick="location.reload()" class="bg-purple-600 text-white p-3 px-8 rounded-full font-bold text-lg hover:bg-purple-700 transition duration-150 shadow-xl w-full sm:w-auto">
-                    Terug naar Menu
-                </button>
+                <div class="bg-gray-50 rounded-xl p-4 border border-gray-200 mb-8 text-left">
+                    <h3 class="font-bold text-gray-500 uppercase tracking-wider text-xs mb-3 border-b pb-2">Alle gokken:</h3>
+                    <ul id="guessing-summary-list" class="space-y-2 text-sm"></ul>
+                </div>
+                <button onclick="location.reload()" class="bg-purple-600 text-white p-3 px-8 rounded-full font-bold text-lg hover:bg-purple-700 transition duration-150 shadow-xl w-full sm:w-auto">Terug naar Menu</button>
             </div>
         </div>
 
         <div id="duel-game" class="hidden">
             <h1 class="text-3xl font-black text-center text-gray-900 mb-6">Online Duel ⚔️</h1>
-
             <div id="duel-lobby" class="text-center space-y-6">
                 <div class="flex flex-col gap-4 max-w-sm mx-auto">
-                    <button id="create-room-btn" class="p-4 bg-green-500 text-white font-bold rounded-xl shadow-lg hover:bg-green-600 transition">
-                        Nieuwe Kamer Maken
-                    </button>
-                    
+                    <button id="create-room-btn" class="p-4 bg-green-500 text-white font-bold rounded-xl shadow-lg hover:bg-green-600 transition">Nieuwe Kamer Maken</button>
                     <div class="flex gap-2">
                         <input type="text" id="room-code-input" placeholder="Code (bv. A1B2)" class="flex-1 p-4 border-2 rounded-xl text-center uppercase font-bold tracking-widest">
-                        <button id="join-room-btn" class="p-4 bg-blue-500 text-white font-bold rounded-xl shadow-lg hover:bg-blue-600 transition">
-                            Join
-                        </button>
+                        <button id="join-room-btn" class="p-4 bg-blue-500 text-white font-bold rounded-xl shadow-lg hover:bg-blue-600 transition">Join</button>
                     </div>
                 </div>
                 <p id="duel-status" class="text-sm text-gray-500 font-medium"></p>
             </div>
 
-            <div id="duel-board" class="hidden space-y-6">
-                
-                <div class="flex justify-between items-center px-2 font-black text-xl">
-                    <div class="p-3 bg-blue-100 text-blue-800 rounded-xl border-2 border-blue-200 shadow-sm">
-                        Jij: <span id="my-score">100</span>
+            <div id="duel-board" class="hidden space-y-4">
+                <div class="flex justify-between items-center px-2 font-black text-xl mb-4">
+                    <div class="p-3 bg-blue-100 text-blue-800 rounded-xl border-2 border-blue-200 shadow-sm">Jij: <span id="my-score">100</span></div>
+                    <div class="text-gray-400 text-sm font-bold uppercase tracking-widest flex flex-col items-center">
+                        <span>Ronde</span>
+                        <span id="round-display" class="text-2xl text-gray-800">1</span>
                     </div>
-                    <div class="text-gray-400 text-sm font-bold uppercase tracking-widest">
-                        Ronde <span id="round-display">1</span>
-                    </div>
-                    <div class="p-3 bg-red-100 text-red-800 rounded-xl border-2 border-red-200 shadow-sm">
-                        Tegen: <span id="opp-score">100</span>
-                    </div>
+                    <div class="p-3 bg-red-100 text-red-800 rounded-xl border-2 border-red-200 shadow-sm">Tegen: <span id="opp-score">100</span></div>
                 </div>
 
-                <div class="p-4 bg-orange-100 rounded-xl border-2 border-orange-300 text-center relative shadow-inner">
-                    <p class="text-sm font-bold text-orange-800 uppercase">🎯 HET DOEL</p>
-                    <p class="text-sm text-orange-600">Zoek een stad zo dicht mogelijk bij:</p>
-                    <p id="duel-target-display" class="text-5xl font-black text-gray-900 mt-2">--°C</p>
-                    <div class="absolute top-2 right-2 bg-white px-2 py-1 rounded text-xs font-bold shadow">
-                        Kamer: <span id="room-code-display" class="text-blue-600">...</span>
+                <div id="duel-play-area">
+                    <div class="p-4 bg-orange-100 rounded-xl border-2 border-orange-300 text-center relative shadow-inner mb-4">
+                        <p class="text-sm font-bold text-orange-800 uppercase">🎯 HET DOEL</p>
+                        <p class="text-sm text-orange-600">Zoek een stad zo dicht mogelijk bij:</p>
+                        <p id="duel-target-display" class="text-5xl font-black text-gray-900 mt-2">--°C</p>
+                        <div class="absolute top-2 right-2 bg-white px-2 py-1 rounded text-xs font-bold shadow">Kamer: <span id="room-code-display" class="text-blue-600">...</span></div>
                     </div>
-                </div>
-
-                <div class="space-y-4 relative">
-                    <input type="text" id="duel-city-input" placeholder="Typ een stad..." class="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:border-orange-500 focus:ring-orange-500">
-                    <div id="duel-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden"></div>
-                    <button id="duel-submit-btn" class="w-full bg-gray-800 text-white p-4 rounded-xl font-extrabold text-xl shadow-lg hover:bg-gray-900 transition">
-                        Kies & Wacht
-                    </button>
-                </div>
-
-                <div id="duel-waiting-msg" class="hidden text-center p-4 bg-blue-50 text-blue-700 rounded-lg animate-pulse border border-blue-200">
-                    ⏳ Wachten op tegenstander...
+                    <div class="space-y-4 relative">
+                        <input type="text" id="duel-city-input" placeholder="Typ een stad..." class="w-full p-4 border-2 border-gray-300 rounded-lg text-lg focus:border-orange-500 focus:ring-orange-500">
+                        <div id="duel-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden"></div>
+                        <button id="duel-submit-btn" class="w-full bg-gray-800 text-white p-4 rounded-xl font-extrabold text-xl shadow-lg hover:bg-gray-900 transition">Kies & Wacht</button>
+                    </div>
+                    <div id="duel-waiting-msg" class="hidden text-center p-4 bg-blue-50 text-blue-700 rounded-lg animate-pulse border border-blue-200 mt-4">⏳ Wachten op tegenstander...</div>
                 </div>
 
                 <div id="duel-result" class="hidden p-6 bg-white border-4 border-gray-200 rounded-xl text-center shadow-xl">
                     <h3 class="text-2xl font-black mb-4">Uitslag Ronde <span id="result-round-num"></span>!</h3>
-                    
                     <div class="grid grid-cols-2 gap-4 text-sm mb-6">
                         <div class="p-2 bg-gray-50 rounded border">
-                            <p class="font-bold text-gray-500">Jij</p>
-                            <p id="p1-result-city" class="font-semibold text-lg">...</p>
-                            <p id="p1-result-temp" class="text-xl font-bold">--°C</p>
-                            <p id="p1-diff" class="text-xs text-gray-500">Afwijking: --</p>
+                            <p class="font-bold text-gray-500">Jij</p><p id="p1-result-city" class="font-semibold text-lg">...</p><p id="p1-result-temp" class="text-xl font-bold">???</p><p id="p1-diff" class="text-xs text-gray-500"></p>
                         </div>
                         <div class="p-2 bg-gray-50 rounded border">
-                            <p class="font-bold text-gray-500">Tegenstander</p>
-                            <p id="p2-result-city" class="font-semibold text-lg">...</p>
-                            <p id="p2-result-temp" class="text-xl font-bold">--°C</p>
-                            <p id="p2-diff" class="text-xs text-gray-500">Afwijking: --</p>
+                            <p class="font-bold text-gray-500">Tegenstander</p><p id="p2-result-city" class="font-semibold text-lg">...</p><p id="p2-result-temp" class="text-xl font-bold">???</p><p id="p2-diff" class="text-xs text-gray-500"></p>
                         </div>
                     </div>
+                    <div class="mb-6 p-3 bg-red-50 border border-red-100 rounded text-red-800 text-sm"><p id="damage-explanation" class="font-mono">Berekenen...</p></div>
+                    <p id="winner-banner" class="text-xl font-black text-green-600 mb-4"></p>
+                    <button id="next-round-btn" class="bg-purple-600 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-purple-700 transition transform hover:-translate-y-1">Volgende Ronde ➡️</button>
+                    <button id="game-over-btn" onclick="location.reload()" class="hidden bg-gray-800 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-black transition transform hover:-translate-y-1">Terug naar Menu 🏠</button>
+                </div>
 
-                    <div class="mb-6 p-3 bg-red-50 border border-red-100 rounded text-red-800 text-sm">
-                        <p id="damage-explanation" class="font-mono">Berekenen...</p>
+                <div id="duel-summary" class="hidden p-6 bg-white border-4 border-dashed border-purple-200 rounded-xl">
+                    <h2 id="summary-title" class="text-3xl font-black text-center mb-6 text-purple-700">Spel Afgelopen!</h2>
+                    
+                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-200 mb-6 text-left">
+                        <h3 class="font-bold text-gray-500 uppercase tracking-wider text-xs mb-3 border-b pb-2">Wedstrijdverloop:</h3>
+                        <ul id="summary-list" class="space-y-3 text-sm"></ul>
                     </div>
 
-                    <p id="winner-banner" class="text-xl font-black text-green-600 mb-4"></p>
-                    
-                    <button id="next-round-btn" class="bg-purple-600 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-purple-700 transition transform hover:-translate-y-1">
-                        Volgende Ronde ➡️
-                    </button>
+                    <button onclick="location.reload()" class="w-full bg-gray-800 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-black transition">Terug naar Menu 🏠</button>
                 </div>
             </div>
         </div>
-
     </div>
 
-    <script type="module" src="script.js"></script>
+    <script type="module" src="main.js"></script>
 </body>
 </html>
