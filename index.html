@@ -9,6 +9,9 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@6.11.0/css/flag-icons.min.css"/>
+
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,10 +20,10 @@
         <h1 class="text-6xl font-black text-slate-800 mb-2 tracking-tighter drop-shadow-sm">Weer Games</h1>
         <p class="text-xl text-slate-500 mb-10 font-medium">Kies je uitdaging en speelwijze</p>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div class="space-y-4 p-6 bg-teal-50/50 rounded-2xl border border-teal-100 hover:bg-teal-50 transition duration-300">
                 <div class="text-4xl mb-2">📉</div>
-                <h2 class="text-2xl font-bold text-teal-800">Aftrekken</h2>
+                <h2 class="text-xl font-bold text-teal-800">Aftrekken</h2>
                 <div class="flex flex-col gap-2">
                     <button id="btn-deduction-text" class="menu-button text-sm">🔤 Typen</button>
                     <button id="btn-deduction-map" class="menu-button text-sm opacity-90">🗺️ Kaart</button>
@@ -28,7 +31,7 @@
             </div>
             <div class="space-y-4 p-6 bg-purple-50/50 rounded-2xl border border-purple-100 hover:bg-purple-50 transition duration-300">
                 <div class="text-4xl mb-2">🔍</div>
-                <h2 class="text-2xl font-bold text-purple-800">Raden</h2>
+                <h2 class="text-xl font-bold text-purple-800">Raden</h2>
                 <div class="flex flex-col gap-2">
                     <button id="btn-guessing-text" class="menu-button text-sm">🔤 Typen</button>
                     <button id="btn-guessing-map" class="menu-button text-sm opacity-90">🗺️ Kaart</button>
@@ -37,15 +40,20 @@
             <div class="space-y-4 p-6 bg-orange-50/50 rounded-2xl border border-orange-100 hover:bg-orange-50 transition duration-300 relative overflow-hidden">
                 <div class="absolute top-0 right-0 p-1 bg-orange-200 text-[10px] font-bold text-orange-800 rounded-bl-lg">POPULAIR</div>
                 <div class="text-4xl mb-2">⚔️</div>
-                <h2 class="text-2xl font-bold text-orange-800">Duel</h2>
+                <h2 class="text-xl font-bold text-orange-800">Duel</h2>
                 <button id="btn-duel-text" class="menu-button w-full text-sm">Start Duel</button>
+            </div>
+            <div class="space-y-4 p-6 bg-yellow-50/50 rounded-2xl border border-yellow-100 hover:bg-yellow-50 transition duration-300">
+                <div class="text-4xl mb-2">💎</div>
+                <h2 class="text-xl font-bold text-yellow-800">Miljonair</h2>
+                <button id="btn-millionaire" class="menu-button w-full text-sm bg-gradient-to-r from-yellow-500 to-amber-600 shadow-yellow-500/50">Speel Quiz</button>
             </div>
         </div>
         <div id="status-message" class="mt-8 font-semibold text-slate-400 text-sm animate-pulse">Verbinding maken...</div>
     </div>
 
     <div id="game-container" class="container-card p-6 md:p-8 hidden relative">
-        <button id="back-to-menu" class="absolute top-6 left-6 text-slate-400 hover:text-slate-700 font-bold flex items-center transition-colors">
+        <button id="back-to-menu" class="absolute top-6 left-6 text-slate-400 hover:text-slate-700 font-bold flex items-center transition-colors z-50">
             <span class="text-xl mr-1">❮</span> Menu
         </button>
 
@@ -119,7 +127,6 @@
 
         <div id="duel-game" class="hidden pt-4">
             <h1 class="text-3xl font-black text-center text-slate-800 mb-6">Online Duel ⚔️</h1>
-            
             <div id="duel-lobby" class="text-center space-y-8 py-8">
                 <div class="flex flex-col gap-6 max-w-sm mx-auto">
                     <button id="create-room-btn" class="p-5 bg-emerald-500 text-white font-bold rounded-2xl shadow-xl hover:bg-emerald-600 transition text-lg">✨ Nieuwe Kamer</button>
@@ -130,14 +137,12 @@
                 </div>
                 <p id="duel-status" class="text-sm text-slate-500 font-medium animate-pulse">Klaar voor de start...</p>
             </div>
-
             <div id="duel-board" class="hidden space-y-6">
                 <div class="flex justify-between items-end px-1 mb-2 font-bold text-slate-700 select-none">
                     <div class="w-[45%]"><div class="flex justify-between text-xs mb-2 uppercase tracking-wider text-blue-700"><span>Jij</span><span id="p1-score-text">100</span></div><div class="hp-track"><div id="p1-hp-bar" class="hp-fill hp-blue" style="width: 100%;"></div></div></div>
                     <div class="w-[10%] text-center pb-1"><div class="text-[9px] text-slate-400 uppercase tracking-widest mb-1">Ronde</div><div id="round-display" class="text-2xl font-black text-slate-800 leading-none">1</div></div>
                     <div class="w-[45%]"><div class="flex justify-between text-xs mb-2 uppercase tracking-wider text-red-700"><span id="p2-score-text">100</span><span>Tegenstander</span></div><div class="hp-track"><div id="p2-hp-bar" class="hp-fill hp-fill-right hp-red" style="width: 100%;"></div></div></div>
                 </div>
-
                 <div id="duel-play-area" class="transition-all duration-300">
                     <div class="p-6 bg-orange-50/90 rounded-2xl border-2 border-orange-200 text-center relative shadow-sm mb-6">
                         <p class="text-xs font-bold text-orange-600 uppercase tracking-widest mb-2">🎯 Het Doel</p>
@@ -156,31 +161,18 @@
                     </div>
                     <div id="duel-waiting-msg" class="hidden text-center p-6 bg-blue-50/80 text-blue-700 rounded-2xl animate-pulse border border-blue-200 mt-4 font-bold">⏳ Wachten op tegenstander...</div>
                 </div>
-
                 <div id="duel-result" class="hidden p-6 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-3xl text-center shadow-2xl relative overflow-hidden">
                     <h3 class="text-3xl font-black mb-6 text-slate-800">Uitslag Ronde <span id="result-round-num"></span></h3>
                     <div class="grid grid-cols-2 gap-4 text-sm mb-6">
-                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            <p class="font-bold text-slate-400 text-xs uppercase mb-1">Jij</p>
-                            <p id="p1-result-city" class="font-bold text-lg text-slate-800 leading-tight">...</p>
-                            <p id="p1-result-temp" class="text-2xl font-black text-blue-600 mt-2">???</p>
-                            <p id="p1-diff" class="text-xs text-slate-400 mt-1"></p>
-                        </div>
-                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            <p class="font-bold text-slate-400 text-xs uppercase mb-1">Tegenstander</p>
-                            <p id="p2-result-city" class="font-bold text-lg text-slate-800 leading-tight">...</p>
-                            <p id="p2-result-temp" class="text-2xl font-black text-red-600 mt-2">???</p>
-                            <p id="p2-diff" class="text-xs text-slate-400 mt-1"></p>
-                        </div>
+                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100"><p class="font-bold text-slate-400 text-xs uppercase mb-1">Jij</p><p id="p1-result-city" class="font-bold text-lg text-slate-800 leading-tight">...</p><p id="p1-result-temp" class="text-2xl font-black text-blue-600 mt-2">???</p><p id="p1-diff" class="text-xs text-slate-400 mt-1"></p></div>
+                        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100"><p class="font-bold text-slate-400 text-xs uppercase mb-1">Tegenstander</p><p id="p2-result-city" class="font-bold text-lg text-slate-800 leading-tight">...</p><p id="p2-result-temp" class="text-2xl font-black text-red-600 mt-2">???</p><p id="p2-diff" class="text-xs text-slate-400 mt-1"></p></div>
                     </div>
-                    
                     <div class="mb-6"><p id="damage-explanation" class="text-sm font-medium text-slate-500">Berekenen...</p></div>
                     <div class="result-hp-wrapper"><div id="result-hp-bar" class="result-hp-fill" style="width: 100%;"></div><div id="result-hp-text" class="result-hp-text">100 HP</div></div>
                     <p id="winner-banner" class="text-2xl font-black text-green-600 mb-6 drop-shadow-sm"></p>
                     <button id="next-round-btn" class="w-full p-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg transition-transform hover:-translate-y-1">Volgende Ronde ➡️</button>
                     <button id="game-over-btn" onclick="location.reload()" class="hidden w-full p-4 bg-slate-800 text-white font-bold rounded-xl shadow-lg hover:bg-black transition">Terug naar Menu 🏠</button>
                 </div>
-
                 <div id="duel-summary" class="hidden p-8 bg-white/95 border-4 border-dashed border-slate-200 rounded-3xl">
                     <h2 id="summary-title" class="text-4xl font-black text-center mb-2 text-slate-800">Spel Afgelopen!</h2>
                     <p class="text-center text-slate-400 text-sm mb-6 uppercase tracking-wide">Eindstatistieken</p>
@@ -190,8 +182,54 @@
                 </div>
             </div>
         </div>
+
+        <div id="millionaire-game" class="hidden pt-4">
+            <div class="text-center mb-6">
+                <h1 class="text-4xl font-black text-slate-800 tracking-tight">De Weer Miljonair 💎</h1>
+                <div class="flex justify-center gap-4 mt-4">
+                    <div class="bg-yellow-100 px-4 py-1 rounded-full text-yellow-800 font-bold border border-yellow-300 shadow-sm">Ronde <span id="mil-round">1</span>/15</div>
+                    <div class="bg-green-100 px-4 py-1 rounded-full text-green-800 font-bold border border-green-300 shadow-sm">Prijs: €<span id="mil-money">0</span></div>
+                </div>
+            </div>
+
+            <div id="mil-game-area" class="space-y-6 max-w-2xl mx-auto">
+                <div class="p-8 bg-slate-800 rounded-2xl border-4 border-slate-600 shadow-2xl relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent opacity-50"></div>
+                    <div class="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent opacity-50"></div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-white text-center drop-shadow-md">
+                        Welke stad is het warmst?
+                    </h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button id="opt-0" class="mil-option"><span class="opt-letter">A:</span> <span class="opt-text">...</span></button>
+                    <button id="opt-1" class="mil-option"><span class="opt-letter">B:</span> <span class="opt-text">...</span></button>
+                    <button id="opt-2" class="mil-option"><span class="opt-letter">C:</span> <span class="opt-text">...</span></button>
+                    <button id="opt-3" class="mil-option"><span class="opt-letter">D:</span> <span class="opt-text">...</span></button>
+                </div>
+
+                <div class="flex justify-center gap-6 mt-8">
+                    <button id="lifeline-5050" class="lifeline-btn" title="50:50">✂️</button>
+                    <button id="lifeline-audience" class="lifeline-btn" title="Vraag Publiek">👥</button>
+                    <button id="lifeline-call" class="lifeline-btn" title="Bel Weerman">📞</button>
+                </div>
+            </div>
+
+            <div id="mil-loading" class="hidden text-center py-10">
+                <div class="animate-spin text-4xl mb-4 text-blue-600">⏳</div>
+                <p class="text-slate-500 font-bold">Volgende vraag laden...</p>
+            </div>
+
+            <div id="mil-end-screen" class="hidden text-center p-8 bg-white/90 backdrop-blur rounded-3xl border-4 border-slate-200">
+                <h2 id="mil-end-title" class="text-5xl font-black mb-4 text-slate-800"></h2>
+                <p class="text-xl text-slate-600 mb-6">Je gaat naar huis met:</p>
+                <div class="text-6xl font-black text-green-600 mb-8 drop-shadow-sm">€<span id="mil-end-money">0</span></div>
+                <button onclick="location.reload()" class="menu-button bg-slate-800 text-white px-10">Opnieuw Spelen</button>
+            </div>
+        </div>
+
     </div>
 
-    <script type="module" src="main.js"></script>
+    <script type="module" src="main.js?v=2"></script>
 </body>
 </html>

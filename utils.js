@@ -1,12 +1,18 @@
 import { API_KEY, FORECAST_API_URL, GEO_API_URL, REVERSE_GEO_API_URL, DEBOUNCE_DELAY } from './config.js';
 
-// --- Region Names ---
 const regionNames = new Intl.DisplayNames(['nl'], { type: 'region' });
+
 export function getCountryName(code) {
     try { return regionNames.of(code); } catch (e) { return code; }
 }
 
-// --- API Test ---
+// AANGEPAST: Geeft nu HTML terug voor een vlag icoon (werkt op Windows!)
+export function getFlagEmoji(countryCode) {
+    if (!countryCode) return '';
+    return `<span class="fi fi-${countryCode.toLowerCase()} shadow-sm rounded-[2px]" style="font-size: 1.2em; margin-left: 6px;"></span>`;
+}
+
+// ... (Rest van het bestand blijft hetzelfde als je vorige versie) ...
 export async function testApiConnection() {
     const msg = document.getElementById('status-message');
     if(!msg) return;
@@ -24,7 +30,6 @@ export async function testApiConnection() {
     } catch { return false; }
 }
 
-// --- Fetch Temp ---
 export async function fetchTemperature(cityData, resultElement) {
     const params = new URLSearchParams({ lat: cityData.lat, lon: cityData.lon, appid: API_KEY, units: 'metric' }).toString();
     try {
@@ -50,7 +55,6 @@ export async function fetchTemperature(cityData, resultElement) {
     }
 }
 
-// --- Autocomplete Logic ---
 let debounceTimer;
 
 async function fetchCitySuggestions(query, callback) {
@@ -74,15 +78,18 @@ function renderSuggestions(cities, container, submitButton, onSelect) {
         seen.add(key);
 
         const div = document.createElement('div');
-        const displayName = `${city.name}, ${getCountryName(city.country)}`;
-        div.textContent = displayName;
+        const flag = getFlagEmoji(city.country);
+        const countryName = getCountryName(city.country);
+        
+        // Gebruik innerHTML omdat flag nu HTML is
+        div.innerHTML = `${city.name}, ${countryName} ${flag}`;
         div.className = 'suggestion-item';
         div.onclick = () => {
             const input = container.previousElementSibling;
-            if(input) input.value = displayName;
+            input.value = `${city.name}, ${countryName}`; // In input veld geen vlaggetje (is text only)
             
             container.classList.add('hidden');
-            const cityData = { name: city.name, country: getCountryName(city.country), lat: city.lat, lon: city.lon };
+            const cityData = { name: city.name, country: city.country, lat: city.lat, lon: city.lon };
             onSelect(cityData);
             if(submitButton) submitButton.disabled = false;
         };
@@ -115,7 +122,6 @@ export function setupCityInput(inputId, suggestionsId, submitBtnId, onSelectCity
     });
 }
 
-// --- Map Logic (NUCLEAR OPTION: NO REPEAT) ---
 let mapInstances = {};
 let mapMarkers = {};
 
@@ -125,26 +131,23 @@ export function initMap(gameType, mapId, onLocationSelected) {
         return; 
     }
     
-    // Wereldgrenzen definiëren
     const worldBounds = [[-90, -180], [90, 180]];
 
     const map = L.map(mapId, { 
-        minZoom: 2, // Niet te ver uitzoomen
-        maxBounds: worldBounds, // De camera mag hier niet buiten
-        maxBoundsViscosity: 1.0, // Harde muur (geen stuiteren)
-        worldCopyJump: false // Voorkom springen naar kopieën
+        minZoom: 2, 
+        maxBounds: worldBounds, 
+        maxBoundsViscosity: 1.0, 
+        worldCopyJump: false 
     }).setView([20, 0], 2);
     
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { 
         maxZoom: 19,
-        noWrap: true, // CRUCIAAL: Stop het herhalen van tegels
-        bounds: worldBounds, // Laad geen tegels buiten de wereld
+        noWrap: true,
+        bounds: worldBounds,
         attribution: '&copy; OpenStreetMap'
     }).addTo(map);
     
     map.on('click', async (e) => {
-        // Zelfs met noWrap gebruiken we .wrap() voor de zekerheid, 
-        // zodat de API altijd geldige coördinaten krijgt.
         const wrapped = e.latlng.wrap();
         const lat = wrapped.lat;
         const lon = wrapped.lng;
@@ -159,8 +162,10 @@ export function initMap(gameType, mapId, onLocationSelected) {
             const data = await res.json();
             if (data.length > 0) {
                 const p = data[0];
-                const cityData = { name: p.name, country: getCountryName(p.country), lat: p.lat, lon: p.lon };
-                onLocationSelected(cityData, `${p.name}, ${cityData.country}`);
+                const cityData = { name: p.name, country: p.country, lat: p.lat, lon: p.lon };
+                const countryName = getCountryName(p.country);
+                // Hier sturen we platte tekst terug voor de input value
+                onLocationSelected(cityData, `${p.name}, ${countryName}`);
             } else {
                 onLocationSelected(null, "Geen stad gevonden.");
             }

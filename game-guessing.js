@@ -1,5 +1,5 @@
 import { GUESSING_MAX_TURNS, GUESSING_MIN_TARGET, GUESSING_MAX_TARGET } from './config.js';
-import { fetchTemperature, initMap, setupCityInput } from './utils.js';
+import { fetchTemperature, initMap, setupCityInput, getFlagEmoji } from './utils.js';
 
 let secretNumber = 0;
 let turnsLeft = GUESSING_MAX_TURNS;
@@ -8,7 +8,6 @@ let selectedCityData = null;
 let isMapMode = false;
 let myChart = null;
 
-// Helper voor veilige tekst updates
 function safeSetText(id, text) {
     const el = document.getElementById(id);
     if(el) el.textContent = text;
@@ -27,7 +26,7 @@ export function init(mode) {
 
     if(input) input.value = '';
     if(btn) btn.disabled = true;
-    
+
     document.getElementById('guessing-game-board').classList.remove('hidden');
     document.getElementById('guessing-end-screen').classList.add('hidden');
     document.getElementById('guessing-turn-result').classList.add('hidden');
@@ -62,7 +61,7 @@ async function handleTurn() {
     const resultDiv = document.getElementById('guessing-turn-result');
 
     if (turnHistory.some(t => t.country === selectedCityData.country)) {
-        resultDiv.innerHTML = `<span class="text-red-600 font-bold">❌ Al een stad in ${selectedCityData.country}!</span>`;
+        resultDiv.innerHTML = `<span class="text-red-600 font-bold">❌ Al een stad in dit land!</span>`;
         resultDiv.classList.remove('hidden');
         return;
     }
@@ -77,19 +76,21 @@ async function handleTurn() {
     turnsLeft--;
     turnHistory.push({ name: selectedCityData.name, country: selectedCityData.country, temp, feedback });
 
+    const flag = getFlagEmoji(selectedCityData.country);
+
     resultDiv.innerHTML = `
         <div class="result-content">
             <span class="temp-icon">${temp > 25 ? '☀️' : '❄️'}</span>
-            <div><p><strong>${selectedCityData.name}</strong> is <strong>${temp}°C</strong>. Getal is <strong>${feedback}</strong></p></div>
+            <div><p><strong>${selectedCityData.name} ${flag}</strong> is <strong>${temp}°C</strong>. Getal is <strong>${feedback}</strong></p></div>
         </div>`;
     resultDiv.classList.remove('hidden');
-    
+
     selectedCityData = null;
     const input = document.getElementById('guessing-city-input');
     if(input) input.value = '';
     const btn = document.getElementById('guessing-submit-button');
     if(btn) btn.disabled = true;
-    
+
     updateDisplay();
     renderHistory();
     if (temp === secretNumber) endGame(true);
@@ -104,12 +105,13 @@ function updateDisplay() {
 function renderHistory() {
     const list = document.getElementById('guessing-history-log');
     if(!list) return;
-    
+
     list.innerHTML = '';
     turnHistory.slice().reverse().forEach((turn) => {
         const li = document.createElement('li');
+        const flag = getFlagEmoji(turn.country);
         li.className = 'text-gray-700 text-sm flex justify-between p-2 bg-gray-50 border-l-4 rounded';
-        li.innerHTML = `<span>${turn.name}</span> <span class="font-bold">${turn.temp}°C (${turn.feedback})</span>`;
+        li.innerHTML = `<span>${turn.name} ${flag}</span> <span class="font-bold">${turn.temp}°C (${turn.feedback})</span>`;
         list.appendChild(li);
     });
     const placeholder = document.getElementById('guessing-history-placeholder');
@@ -119,13 +121,12 @@ function renderHistory() {
 function endGame(won) {
     document.getElementById('guessing-game-board').classList.add('hidden');
     document.getElementById('guessing-end-screen').classList.remove('hidden');
-    
+
     safeSetText('guessing-end-title', won ? "GEVONDEN!" : "HELAAS!");
     safeSetText('guessing-end-message', `Het getal was ${secretNumber}°C.`);
 
     if(won && typeof confetti === "function") confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
 
-    // Stats
     let maxTemp = -999;
     let minTemp = 999;
     let maxCity = "-";
@@ -135,12 +136,13 @@ function endGame(won) {
     if(list) {
         list.innerHTML = '';
         turnHistory.forEach(turn => {
-            if(turn.temp > maxTemp) { maxTemp = turn.temp; maxCity = turn.name; }
-            if(turn.temp < minTemp) { minTemp = turn.temp; minCity = turn.name; }
+            const flag = getFlagEmoji(turn.country);
+            if(turn.temp > maxTemp) { maxTemp = turn.temp; maxCity = `${turn.name} ${flag}`; }
+            if(turn.temp < minTemp) { minTemp = turn.temp; minCity = `${turn.name} ${flag}`; }
 
             const li = document.createElement('li');
             li.className = "flex justify-between border-b border-gray-100 pb-1";
-            li.innerHTML = `<span>${turn.name}</span> <span class="font-bold">${turn.temp}°C (${turn.feedback})</span>`;
+            li.innerHTML = `<span>${turn.name} ${flag}</span> <span class="font-bold">${turn.temp}°C (${turn.feedback})</span>`;
             list.appendChild(li);
         });
     }
@@ -148,11 +150,9 @@ function endGame(won) {
     safeSetText('guess-stat-hot', maxCity !== "-" ? `${maxCity} (${maxTemp}°C)` : "-");
     safeSetText('guess-stat-cold', minCity !== "-" ? `${minCity} (${minTemp}°C)` : "-");
 
-    // Grafiek
     const ctx = document.getElementById('guessing-chart');
     if(ctx) {
         if(myChart) myChart.destroy();
-        
         myChart = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -170,10 +170,7 @@ function endGame(won) {
                     pointRadius: 0
                 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
-            }
+            options: { responsive: true, maintainAspectRatio: false }
         });
     }
 }

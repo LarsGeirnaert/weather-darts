@@ -1,55 +1,74 @@
 import { testApiConnection } from './utils.js';
-import * as DeductionGame from './game-deduction.js';
-import * as GuessingGame from './game-guessing.js';
-import * as DuelGame from './game-duel.js';
+import * as deductionGame from './game-deduction.js';
+import * as guessingGame from './game-guessing.js';
+import * as duelGame from './game-duel.js';
+import * as millionaireGame from './game-millionaire.js';
 
-// DOM Elements
-const mainMenu = document.getElementById('main-menu');
-const gameContainer = document.getElementById('game-container');
-const backButton = document.getElementById('back-to-menu');
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log("🚀 Main.js geladen!");
+    await testApiConnection();
 
-// Navigatie Functies
-function showMenu() {
-    mainMenu.classList.remove('hidden');
-    gameContainer.classList.add('hidden');
+    // DEDUCTION
+    const btnDedText = document.getElementById('btn-deduction-text');
+    const btnDedMap = document.getElementById('btn-deduction-map');
+    if(btnDedText) btnDedText.addEventListener('click', () => startGame('deduction', 'text'));
+    if(btnDedMap) btnDedMap.addEventListener('click', () => startGame('deduction', 'map'));
+
+    // GUESSING
+    const btnGuessText = document.getElementById('btn-guessing-text');
+    const btnGuessMap = document.getElementById('btn-guessing-map');
+    if(btnGuessText) btnGuessText.addEventListener('click', () => startGame('guessing', 'text'));
+    if(btnGuessMap) btnGuessMap.addEventListener('click', () => startGame('guessing', 'map'));
+
+    // DUEL
+    const btnDuel = document.getElementById('btn-duel-text');
+    if(btnDuel) btnDuel.addEventListener('click', () => startGame('duel', 'text'));
+
+    // MILJONAIR (De knop die niet werkte)
+    const btnMil = document.getElementById('btn-millionaire');
+    if(btnMil) {
+        console.log("💎 Miljonair knop gevonden!");
+        btnMil.addEventListener('click', () => {
+            console.log("💎 Start quiz...");
+            startGame('millionaire', 'text');
+        });
+    } else {
+        console.error("❌ Kan knop 'btn-millionaire' niet vinden!");
+    }
+
+    // Back Button
+    const backBtn = document.getElementById('back-to-menu');
+    if(backBtn) backBtn.addEventListener('click', () => location.reload());
+});
+
+function startGame(game, mode) {
+    console.log(`🎮 Start spel: ${game}`);
+    document.getElementById('main-menu').classList.add('hidden');
+    document.getElementById('game-container').classList.remove('hidden');
+
+    // Verberg alle games
     document.getElementById('deduction-game').classList.add('hidden');
     document.getElementById('guessing-game').classList.add('hidden');
     document.getElementById('duel-game').classList.add('hidden');
-}
+    
+    const milGame = document.getElementById('millionaire-game');
+    if(milGame) milGame.classList.add('hidden');
 
-function showGame(gameId) {
-    mainMenu.classList.add('hidden');
-    gameContainer.classList.remove('hidden');
-    document.getElementById(gameId).classList.remove('hidden');
-}
-
-async function handleGameStart(type, mode) {
-    const isConnected = await testApiConnection();
-    if (!isConnected) return;
-
-    if (type === 'deduction') {
-        showGame('deduction-game');
-        DeductionGame.init(mode);
-    } else if (type === 'guessing') {
-        showGame('guessing-game');
-        GuessingGame.init(mode);
-    } else if (type === 'duel') {
-        showGame('duel-game');
-        DuelGame.init();
+    if (game === 'deduction') {
+        deductionGame.init(mode);
+        document.getElementById('deduction-game').classList.remove('hidden');
+    } else if (game === 'guessing') {
+        guessingGame.init(mode);
+        document.getElementById('guessing-game').classList.remove('hidden');
+    } else if (game === 'duel') {
+        duelGame.init();
+        document.getElementById('duel-game').classList.remove('hidden');
+    } else if (game === 'millionaire') {
+        if(milGame) {
+            millionaireGame.init();
+            milGame.classList.remove('hidden');
+        } else {
+            alert("❌ Fout: Quiz scherm (id='millionaire-game') niet gevonden in HTML. Ververs de pagina!");
+        }
     }
 }
-
-// Event Listeners voor Menu Knoppen
-document.getElementById('btn-deduction-text').onclick = () => handleGameStart('deduction', 'text');
-document.getElementById('btn-deduction-map').onclick = () => handleGameStart('deduction', 'map');
-
-document.getElementById('btn-guessing-text').onclick = () => handleGameStart('guessing', 'text');
-document.getElementById('btn-guessing-map').onclick = () => handleGameStart('guessing', 'map');
-
-document.getElementById('btn-duel-text').onclick = () => handleGameStart('duel', 'text');
-
-// Back Button
-backButton.onclick = showMenu;
-
-// Init Check
-testApiConnection();

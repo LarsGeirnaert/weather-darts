@@ -1,5 +1,5 @@
 import { db, ref, set, onValue, update } from './firebase.js';
-import { fetchTemperature, setupCityInput } from './utils.js';
+import { fetchTemperature, setupCityInput, getFlagEmoji } from './utils.js';
 
 let currentRoomId = null;
 let playerRole = null; 
@@ -9,9 +9,10 @@ let isProcessingTurn = false;
 let myChart = null; 
 let lastKnownRound = 0;
 
-function safeSetText(id, text) {
+// AANGEPAST: Gebruikt nu innerHTML zodat vlag-plaatjes werken
+function safeSetText(id, htmlContent) {
     const el = document.getElementById(id);
-    if (el) el.textContent = text;
+    if (el) el.innerHTML = htmlContent;
 }
 
 function updateUsedCitiesUI() {
@@ -19,15 +20,20 @@ function updateUsedCitiesUI() {
     if (!container) return;
     
     container.innerHTML = '';
-    myUsedCities.forEach(city => {
+    myUsedCities.forEach(cityItem => {
+        // Ondersteuning voor oude data (string) en nieuwe data (object met vlag HTML)
+        let displayHtml = cityItem;
+        if (typeof cityItem === 'object') {
+            displayHtml = `${cityItem.name} ${cityItem.flag}`;
+        }
+
         const badge = document.createElement('span');
         badge.className = 'city-badge';
-        badge.textContent = city;
+        badge.innerHTML = displayHtml; // innerHTML voor de vlag span
         container.appendChild(badge);
     });
 }
 
-// NIEUW: Genereer leesbare ID's zonder 0, O, I, 1
 function generateRoomId() {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     let result = "";
@@ -55,7 +61,7 @@ export function init() {
         const newCreate = createBtn.cloneNode(true);
         createBtn.parentNode.replaceChild(newCreate, createBtn);
         newCreate.onclick = () => {
-            const roomId = generateRoomId(); // Gebruik de nieuwe functie
+            const roomId = generateRoomId();
             createRoom(roomId);
         };
     }
@@ -123,6 +129,7 @@ function waitForGameStart() {
             if(btn) {
                 btn.disabled = true;
                 btn.classList.remove('hidden');
+                btn.textContent = "Kies & Wacht";
             }
             document.getElementById('duel-waiting-msg').classList.add('hidden');
         }
@@ -149,7 +156,18 @@ function waitForGameStart() {
         if (data.history) {
             Object.values(data.history).forEach(item => {
                 const myMove = playerRole === 'host' ? item.host : item.guest;
-                if(myMove && myMove.guess) myUsedCities.add(myMove.guess);
+                if(myMove && myMove.guess) {
+                    // Check of we dit object al hebben (op basis van naam)
+                    let exists = false;
+                    for(let elem of myUsedCities) {
+                        if(elem.name === myMove.guess) exists = true;
+                    }
+                    
+                    if(!exists) {
+                        const flagHtml = getFlagEmoji(myMove.country);
+                        myUsedCities.add({ name: myMove.guess, flag: flagHtml });
+                    }
+                }
             });
             updateUsedCitiesUI();
         }
@@ -183,6 +201,7 @@ function waitForGameStart() {
         } else if (data.roundState === 'game_over') {
              showGameSummary(data);
         } else {
+             // State = 'guessing'
              isProcessingTurn = false;
              
              document.getElementById('duel-result').classList.add('hidden');
@@ -242,7 +261,13 @@ function setReadyForNextRound() {
 async function submitDuelGuess() {
     if (!duelCityData) return;
 
-    if (myUsedCities.has(duelCityData.name)) {
+    // Check of stad al in myUsedCities zit (op basis van naam)
+    let alreadyUsed = false;
+    for(let elem of myUsedCities) {
+        if(elem.name === duelCityData.name) alreadyUsed = true;
+    }
+
+    if (alreadyUsed) {
         alert(`⚠️ Je hebt ${duelCityData.name} al gebruikt deze game! Kies een andere stad.`);
         return;
     }
@@ -258,11 +283,14 @@ async function submitDuelGuess() {
     const temp = await fetchTemperature(duelCityData, null);
 
     if (temp !== null) {
-        myUsedCities.add(duelCityData.name);
+        // Voeg toe aan lokale lijst voor directe feedback
+        const flagHtml = getFlagEmoji(duelCityData.country);
+        myUsedCities.add({ name: duelCityData.name, flag: flagHtml });
         updateUsedCitiesUI();
         
         update(ref(db, `rooms/${currentRoomId}/${playerRole}`), {
             guess: duelCityData.name,
+            country: duelCityData.country, // SAVE COUNTRY CODE!
             temp: temp
         });
     }
@@ -325,11 +353,15 @@ function showDuelResults(data) {
 
     safeSetText('result-round-num', round);
     
-    safeSetText('p1-result-city', myData?.guess || "...");
+    // Flags ophalen op basis van opgeslagen landcode
+    const myFlag = getFlagEmoji(myData?.country);
+    const oppFlag = getFlagEmoji(oppData?.country);
+
+    safeSetText('p1-result-city', `${myData?.guess} ${myFlag}` || "...");
     safeSetText('p1-result-temp', `${myTemp}°C`); 
     safeSetText('p1-diff', `(Afwijking: ${myDiff})`);
 
-    safeSetText('p2-result-city', oppData?.guess || "...");
+    safeSetText('p2-result-city', `${oppData?.guess} ${oppFlag}` || "...");
     safeSetText('p2-result-temp', "???"); 
     safeSetText('p2-diff', ""); 
 
@@ -433,6 +465,9 @@ function showGameSummary(data) {
             const myMove = playerRole === 'host' ? item.host : item.guest;
             const oppMove = playerRole === 'host' ? item.guest : item.host;
 
+            const myFlag = getFlagEmoji(myMove.country);
+            const oppFlag = getFlagEmoji(oppMove.country);
+
             const hostDiff = item.host.diff;
             const guestDiff = item.guest.diff;
             const round = item.round;
@@ -458,8 +493,8 @@ function showGameSummary(data) {
                         <span class="text-blue-600">Doel: ${item.target}°C</span>
                     </div>
                     <div class="flex justify-between text-xs">
-                        <span class="text-green-700 font-semibold">Jij: ${myMove.guess} (${myMove.temp}°C)</span>
-                        <span class="text-red-700">Zij: ${oppMove.guess} (${oppMove.temp}°C)</span>
+                        <span class="text-green-700 font-semibold">Jij: ${myMove.guess} ${myFlag} (${myMove.temp}°C)</span>
+                        <span class="text-red-700">Zij: ${oppMove.guess} ${oppFlag} (${oppMove.temp}°C)</span>
                     </div>
                 `;
                 list.appendChild(li);
