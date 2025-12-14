@@ -7,42 +7,78 @@ let duelCityData = null;
 let myUsedCities = new Set();
 let isProcessingTurn = false;
 let myChart = null; 
+let lastKnownRound = 0;
+
+function safeSetText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+}
+
+function updateUsedCitiesUI() {
+    const container = document.getElementById('used-cities-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    myUsedCities.forEach(city => {
+        const badge = document.createElement('span');
+        badge.className = 'city-badge';
+        badge.textContent = city;
+        container.appendChild(badge);
+    });
+}
+
+// NIEUW: Genereer leesbare ID's zonder 0, O, I, 1
+function generateRoomId() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let result = "";
+    for (let i = 0; i < 4; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
 
 export function init() {
     const input = document.getElementById('duel-city-input');
     const btn = document.getElementById('duel-submit-btn');
-    input.value = '';
-    btn.disabled = true;
+    if(input) input.value = '';
+    if(btn) btn.disabled = true;
     
     myUsedCities.clear();
+    updateUsedCitiesUI();
+    lastKnownRound = 0;
 
     const createBtn = document.getElementById('create-room-btn');
     const joinBtn = document.getElementById('join-room-btn');
     const codeInput = document.getElementById('room-code-input');
 
-    const newCreate = createBtn.cloneNode(true);
-    const newJoin = joinBtn.cloneNode(true);
-    createBtn.parentNode.replaceChild(newCreate, createBtn);
-    joinBtn.parentNode.replaceChild(newJoin, joinBtn);
+    if(createBtn) {
+        const newCreate = createBtn.cloneNode(true);
+        createBtn.parentNode.replaceChild(newCreate, createBtn);
+        newCreate.onclick = () => {
+            const roomId = generateRoomId(); // Gebruik de nieuwe functie
+            createRoom(roomId);
+        };
+    }
 
-    newCreate.onclick = () => {
-        const roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
-        createRoom(roomId);
-    };
-
-    newJoin.onclick = () => {
-        const roomId = codeInput.value.toUpperCase().trim();
-        if(roomId.length === 4) joinRoom(roomId);
-    };
+    if(joinBtn && codeInput) {
+        const newJoin = joinBtn.cloneNode(true);
+        joinBtn.parentNode.replaceChild(newJoin, joinBtn);
+        newJoin.onclick = () => {
+            const roomId = codeInput.value.toUpperCase().trim();
+            if(roomId.length === 4) joinRoom(roomId);
+        };
+    }
 
     setupCityInput('duel-city-input', 'duel-suggestions', 'duel-submit-btn', (city) => {
         duelCityData = city;
     });
 
     const nextBtn = document.getElementById('next-round-btn');
-    const newNextBtn = nextBtn.cloneNode(true);
-    nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
-    newNextBtn.onclick = setReadyForNextRound;
+    if(nextBtn) {
+        const newNextBtn = nextBtn.cloneNode(true);
+        nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
+        newNextBtn.onclick = setReadyForNextRound;
+    }
 }
 
 function createRoom(roomId) {
@@ -71,28 +107,43 @@ function joinRoom(roomId) {
 function waitForGameStart() {
     document.getElementById('duel-lobby').classList.add('hidden');
     document.getElementById('duel-board').classList.remove('hidden');
-    document.getElementById('room-code-display').textContent = currentRoomId;
+    safeSetText('room-code-display', currentRoomId);
 
     onValue(ref(db, 'rooms/' + currentRoomId), (snapshot) => {
         const data = snapshot.val();
         if (!data) return; 
 
-        document.getElementById('duel-target-display').textContent = `${data.targetTemp}°C`;
-        document.getElementById('round-display').textContent = data.round;
+        // DETECTEER NIEUWE RONDE
+        if (data.round > lastKnownRound) {
+            lastKnownRound = data.round;
+            const input = document.getElementById('duel-city-input');
+            if(input) input.value = '';
+            duelCityData = null;
+            const btn = document.getElementById('duel-submit-btn');
+            if(btn) {
+                btn.disabled = true;
+                btn.classList.remove('hidden');
+            }
+            document.getElementById('duel-waiting-msg').classList.add('hidden');
+        }
+
+        safeSetText('duel-target-display', `${data.targetTemp}°C`);
+        safeSetText('round-display', data.round);
         
-        // HP BARS (Bovenaan)
         if (data.scores) {
             const myScore = playerRole === 'host' ? data.scores.host : data.scores.guest;
             const oppScore = playerRole === 'host' ? data.scores.guest : data.scores.host;
             
-            document.getElementById('p1-score-text').textContent = Math.round(myScore);
-            document.getElementById('p2-score-text').textContent = Math.round(oppScore);
+            safeSetText('p1-score-text', Math.round(myScore));
+            safeSetText('p2-score-text', Math.round(oppScore));
 
             const myPct = Math.max(0, Math.min(100, myScore));
             const oppPct = Math.max(0, Math.min(100, oppScore));
 
-            document.getElementById('p1-hp-bar').style.width = `${myPct}%`;
-            document.getElementById('p2-hp-bar').style.width = `${oppPct}%`;
+            const p1Bar = document.getElementById('p1-hp-bar');
+            const p2Bar = document.getElementById('p2-hp-bar');
+            if(p1Bar) p1Bar.style.width = `${myPct}%`;
+            if(p2Bar) p2Bar.style.width = `${oppPct}%`;
         }
 
         if (data.history) {
@@ -100,6 +151,7 @@ function waitForGameStart() {
                 const myMove = playerRole === 'host' ? item.host : item.guest;
                 if(myMove && myMove.guess) myUsedCities.add(myMove.guess);
             });
+            updateUsedCitiesUI();
         }
 
         if (data.roundState === 'results') {
@@ -111,14 +163,16 @@ function waitForGameStart() {
                  const myData = playerRole === 'host' ? data.host : data.guest;
                  const btn = document.getElementById('next-round-btn');
                  
-                 if (myData && myData.ready) {
-                     btn.textContent = "⏳ Wachten op ander...";
-                     btn.disabled = true;
-                     btn.classList.add('opacity-50', 'cursor-not-allowed');
-                 } else {
-                     btn.textContent = "Volgende Ronde ➡️";
-                     btn.disabled = false;
-                     btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                 if (btn) {
+                     if (myData && myData.ready) {
+                         btn.textContent = "⏳ Wachten op ander...";
+                         btn.disabled = true;
+                         btn.classList.add('opacity-50', 'cursor-not-allowed');
+                     } else {
+                         btn.textContent = "Volgende Ronde ➡️";
+                         btn.disabled = false;
+                         btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                     }
                  }
 
                  if (playerRole === 'host' && data.host?.ready && data.guest?.ready) {
@@ -133,45 +187,50 @@ function waitForGameStart() {
              
              document.getElementById('duel-result').classList.add('hidden');
              document.getElementById('duel-play-area').classList.remove('hidden');
-             document.getElementById('duel-waiting-msg').classList.add('hidden');
-             document.getElementById('duel-submit-btn').classList.remove('hidden');
-             document.getElementById('duel-submit-btn').textContent = "Kies & Wacht"; 
+             
+             const submitBtn = document.getElementById('duel-submit-btn');
+             if(submitBtn) {
+                 submitBtn.textContent = "Kies & Wacht";
+             }
              
              const nextBtn = document.getElementById('next-round-btn');
-             nextBtn.disabled = false;
-             nextBtn.textContent = "Volgende Ronde ➡️";
-             nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+             if(nextBtn) {
+                 nextBtn.disabled = false;
+                 nextBtn.textContent = "Volgende Ronde ➡️";
+                 nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+             }
 
              const myData = playerRole === 'host' ? data.host : data.guest;
              const input = document.getElementById('duel-city-input');
              
              if (myData && myData.temp !== undefined) {
-                 document.getElementById('duel-submit-btn').classList.add('hidden');
+                 if(submitBtn) submitBtn.classList.add('hidden');
                  document.getElementById('duel-waiting-msg').classList.remove('hidden');
-                 input.disabled = true;
+                 if(input) input.disabled = true;
              } else {
-                 input.disabled = false;
-                 if(duelCityData === null) input.value = '';
+                 if(input) input.disabled = false;
+                 document.getElementById('duel-waiting-msg').classList.add('hidden');
+                 if(submitBtn) submitBtn.classList.remove('hidden');
              }
         }
 
         if (playerRole === 'host' && data.roundState === 'guessing' && !isProcessingTurn) {
             if (data.host?.temp !== undefined && data.guest?.temp !== undefined) {
-                isProcessingTurn = true;
+                isProcessingTurn = true; 
                 calculateAndSaveScores(data);
             }
         }
     });
 
     const oldBtn = document.getElementById('duel-submit-btn');
-    const newBtn = oldBtn.cloneNode(true);
-    oldBtn.parentNode.replaceChild(newBtn, oldBtn);
-    
-    setupCityInput('duel-city-input', 'duel-suggestions', 'duel-submit-btn', (city) => {
-        duelCityData = city;
-    });
-
-    newBtn.onclick = submitDuelGuess;
+    if(oldBtn) {
+        const newBtn = oldBtn.cloneNode(true);
+        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+        setupCityInput('duel-city-input', 'duel-suggestions', 'duel-submit-btn', (city) => {
+            duelCityData = city;
+        });
+        newBtn.onclick = submitDuelGuess;
+    }
 }
 
 function setReadyForNextRound() {
@@ -191,15 +250,17 @@ async function submitDuelGuess() {
     const input = document.getElementById('duel-city-input');
     const btn = document.getElementById('duel-submit-btn');
     
-    input.disabled = true;
-    btn.classList.add('hidden');
+    if(input) input.disabled = true;
+    if(btn) btn.classList.add('hidden');
     document.getElementById('duel-waiting-msg').classList.remove('hidden');
-    document.getElementById('duel-waiting-msg').textContent = "⏳ Wachten op tegenstander...";
+    safeSetText('duel-waiting-msg', "⏳ Wachten op tegenstander...");
 
     const temp = await fetchTemperature(duelCityData, null);
 
     if (temp !== null) {
         myUsedCities.add(duelCityData.name);
+        updateUsedCitiesUI();
+        
         update(ref(db, `rooms/${currentRoomId}/${playerRole}`), {
             guess: duelCityData.name,
             temp: temp
@@ -248,7 +309,8 @@ function calculateAndSaveScores(data) {
 
 function showDuelResults(data) {
     document.getElementById('duel-play-area').classList.add('hidden');
-    document.getElementById('duel-result').classList.remove('hidden');
+    const resultDiv = document.getElementById('duel-result');
+    resultDiv.classList.remove('hidden');
 
     const myData = playerRole === 'host' ? data.host : data.guest;
     const oppData = playerRole === 'host' ? data.guest : data.host;
@@ -261,15 +323,15 @@ function showDuelResults(data) {
     const myDiff = Math.abs(target - myTemp);
     const oppDiff = Math.abs(target - oppTemp);
 
-    document.getElementById('result-round-num').textContent = round;
+    safeSetText('result-round-num', round);
     
-    document.getElementById('p1-result-city').textContent = myData?.guess || "...";
-    document.getElementById('p1-result-temp').textContent = `${myTemp}°C`; 
-    document.getElementById('p1-diff').textContent = ""; 
+    safeSetText('p1-result-city', myData?.guess || "...");
+    safeSetText('p1-result-temp', `${myTemp}°C`); 
+    safeSetText('p1-diff', `(Afwijking: ${myDiff})`);
 
-    document.getElementById('p2-result-city').textContent = oppData?.guess || "...";
-    document.getElementById('p2-result-temp').textContent = "???"; 
-    document.getElementById('p2-diff').textContent = ""; 
+    safeSetText('p2-result-city', oppData?.guess || "...");
+    safeSetText('p2-result-temp', "???"); 
+    safeSetText('p2-diff', ""); 
 
     const banner = document.getElementById('winner-banner');
     const explanation = document.getElementById('damage-explanation');
@@ -278,35 +340,43 @@ function showDuelResults(data) {
     const totalDamage = baseDamage * round;
 
     if (myDiff < oppDiff) {
-        banner.textContent = "🏆 JIJ WINT!";
-        banner.className = "text-xl font-black text-green-600 mb-4";
-        explanation.textContent = `Jij zat ${baseDamage}°C dichterbij! Tegenstander verliest ${totalDamage} punten.`;
+        if(banner) {
+            banner.textContent = "🏆 JIJ WINT!";
+            banner.className = "text-3xl font-black text-green-500 mb-6 drop-shadow-sm";
+        }
+        if(explanation) explanation.textContent = `Jij zat ${baseDamage}°C dichterbij! Tegenstander verliest ${totalDamage} punten.`;
     } else if (oppDiff < myDiff) {
-        banner.textContent = "😢 VERLOREN...";
-        banner.className = "text-xl font-black text-red-600 mb-4";
-        explanation.textContent = `Tegenstander zat ${baseDamage}°C dichterbij! Jij verliest ${totalDamage} punten.`;
+        if(banner) {
+            banner.textContent = "😢 VERLOREN...";
+            banner.className = "text-3xl font-black text-red-500 mb-6 drop-shadow-sm";
+        }
+        if(explanation) explanation.textContent = `Tegenstander zat ${baseDamage}°C dichterbij! Jij verliest ${totalDamage} punten.`;
     } else {
-        banner.textContent = "🤝 GELIJKSPEL!";
-        banner.className = "text-xl font-black text-blue-600 mb-4";
-        explanation.textContent = "Even ver weg. Niemand verliest punten.";
+        if(banner) {
+            banner.textContent = "🤝 GELIJKSPEL!";
+            banner.className = "text-3xl font-black text-blue-500 mb-6 drop-shadow-sm";
+        }
+        if(explanation) explanation.textContent = "Even ver weg. Niemand verliest punten.";
     }
 
-    // --- NIEUW: UPDATE DE RESULT HP BAR ---
     const myScore = playerRole === 'host' ? data.scores.host : data.scores.guest;
     const myPct = Math.max(0, Math.min(100, myScore));
-    document.getElementById('result-hp-bar').style.width = `${myPct}%`;
-    document.getElementById('result-hp-text').textContent = `${Math.round(myScore)} HP`;
+    
+    const resultHpBar = document.getElementById('result-hp-bar');
+    const resultHpText = document.getElementById('result-hp-text');
+    
+    if(resultHpBar) resultHpBar.style.width = `${myPct}%`;
+    if(resultHpText) resultHpText.textContent = `${Math.round(myScore)} HP`;
 
-    // GAME OVER KNOP
     const nextBtn = document.getElementById('next-round-btn');
     const gameOverBtn = document.getElementById('game-over-btn');
 
     if (data.scores && (data.scores.host <= 0 || data.scores.guest <= 0)) {
-        nextBtn.classList.add('hidden');
-        gameOverBtn.classList.remove('hidden');
+        if(nextBtn) nextBtn.classList.add('hidden');
+        if(gameOverBtn) gameOverBtn.classList.remove('hidden');
     } else {
-        nextBtn.classList.remove('hidden');
-        gameOverBtn.classList.add('hidden');
+        if(nextBtn) nextBtn.classList.remove('hidden');
+        if(gameOverBtn) gameOverBtn.classList.add('hidden');
     }
 }
 
@@ -336,12 +406,12 @@ function showGameSummary(data) {
     const title = document.getElementById('summary-title');
     
     if (myScore > 0) {
-        title.textContent = "🏆 GEWONNEN!";
-        title.className = "text-4xl font-black text-center mb-6 text-green-600";
-        confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
+        safeSetText('summary-title', "🏆 GEWONNEN!");
+        if(title) title.className = "text-4xl font-black text-center mb-6 text-green-600";
+        if(typeof confetti === "function") confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
     } else {
-        title.textContent = "💀 GAME OVER";
-        title.className = "text-4xl font-black text-center mb-6 text-red-600";
+        safeSetText('summary-title', "💀 GAME OVER");
+        if(title) title.className = "text-4xl font-black text-center mb-6 text-red-600";
     }
 
     onValue(ref(db, `rooms/${currentRoomId}/history`), (snapshot) => {
@@ -349,16 +419,15 @@ function showGameSummary(data) {
         if (!history) return;
 
         const list = document.getElementById('summary-list');
-        list.innerHTML = '';
+        if(list) list.innerHTML = '';
 
         const sortedHistory = Object.values(history).sort((a, b) => a.round - b.round);
-        
-        let currentHostScore = 100;
-        let currentGuestScore = 100;
         
         const hostScores = [100];
         const guestScores = [100];
         const roundLabels = ['Start'];
+        let currentHostScore = 100;
+        let currentGuestScore = 100;
 
         sortedHistory.forEach(item => {
             const myMove = playerRole === 'host' ? item.host : item.guest;
@@ -380,62 +449,61 @@ function showGameSummary(data) {
             guestScores.push(Math.max(0, currentGuestScore));
             roundLabels.push(`Ronde ${round}`);
 
-            const li = document.createElement('li');
-            li.className = "bg-gray-100 p-2 rounded border border-gray-200";
-            
-            li.innerHTML = `
-                <div class="flex justify-between font-bold text-gray-700 border-b border-gray-300 pb-1 mb-1">
-                    <span>Ronde ${item.round}</span>
-                    <span class="text-blue-600">Doel: ${item.target}°C</span>
-                </div>
-                <div class="flex justify-between text-xs">
-                    <span class="text-green-700 font-semibold">Jij: ${myMove.guess} (${myMove.temp}°C)</span>
-                    <span class="text-red-700">Zij: ${oppMove.guess} (${oppMove.temp}°C)</span>
-                </div>
-            `;
-            list.appendChild(li);
+            if(list) {
+                const li = document.createElement('li');
+                li.className = "bg-gray-100 p-2 rounded border border-gray-200";
+                li.innerHTML = `
+                    <div class="flex justify-between font-bold text-gray-700 border-b border-gray-300 pb-1 mb-1">
+                        <span>Ronde ${item.round}</span>
+                        <span class="text-blue-600">Doel: ${item.target}°C</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-green-700 font-semibold">Jij: ${myMove.guess} (${myMove.temp}°C)</span>
+                        <span class="text-red-700">Zij: ${oppMove.guess} (${oppMove.temp}°C)</span>
+                    </div>
+                `;
+                list.appendChild(li);
+            }
         });
 
         const myScoreData = playerRole === 'host' ? hostScores : guestScores;
         const oppScoreData = playerRole === 'host' ? guestScores : hostScores;
 
-        if(myChart) myChart.destroy();
         const ctx = document.getElementById('duel-chart');
-        myChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: roundLabels,
-                datasets: [
-                    {
-                        label: 'Mijn Score',
-                        data: myScoreData,
-                        borderColor: '#22c55e',
-                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                        tension: 0.1,
-                        fill: true
-                    },
-                    {
-                        label: 'Tegenstander Score',
-                        data: oppScoreData,
-                        borderColor: '#ef4444',
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                        tension: 0.1,
-                        fill: true
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { 
-                        beginAtZero: true, 
-                        suggestedMax: 100,
-                        title: { display: true, text: 'HP' }
+        if(ctx) {
+            if(myChart) myChart.destroy();
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: roundLabels,
+                    datasets: [
+                        {
+                            label: 'Mijn Score',
+                            data: myScoreData,
+                            borderColor: '#22c55e',
+                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                            tension: 0.1,
+                            fill: true
+                        },
+                        {
+                            label: 'Tegenstander Score',
+                            data: oppScoreData,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            tension: 0.1,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, suggestedMax: 100, title: { display: true, text: 'HP' } }
                     }
                 }
-            }
-        });
+            });
+        }
 
     }, { onlyOnce: true });
 }

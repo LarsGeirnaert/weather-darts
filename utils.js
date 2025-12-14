@@ -9,14 +9,15 @@ export function getCountryName(code) {
 // --- API Test ---
 export async function testApiConnection() {
     const msg = document.getElementById('status-message');
+    if(!msg) return;
+    
     msg.textContent = "🔬 Verbinding testen...";
-    msg.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-blue-100 text-blue-700 text-sm";
     
     try {
         const response = await fetch(`${GEO_API_URL}?q=London&limit=1&appid=${API_KEY}`);
         if (response.status === 200) {
             msg.textContent = "✅ Klaar om te spelen!";
-            msg.className = "text-center p-3 mt-8 rounded-lg font-semibold bg-green-100 text-green-700 text-sm";
+            msg.className = "mt-8 font-bold text-green-600 text-sm animate-bounce";
             return true;
         }
         return false;
@@ -53,7 +54,7 @@ export async function fetchTemperature(cityData, resultElement) {
 let debounceTimer;
 
 async function fetchCitySuggestions(query, callback) {
-    const params = new URLSearchParams({ q: query, limit: 2, appid: API_KEY }).toString();
+    const params = new URLSearchParams({ q: query, limit: 5, appid: API_KEY }).toString();
     try {
         const response = await fetch(`${GEO_API_URL}?${params}`);
         callback(await response.json());
@@ -63,9 +64,9 @@ async function fetchCitySuggestions(query, callback) {
 function renderSuggestions(cities, container, submitButton, onSelect) {
     container.innerHTML = '';
     const seen = new Set();
-    submitButton.disabled = true;
+    if(submitButton) submitButton.disabled = true;
 
-    if (cities.length === 0) { container.classList.add('hidden'); submitButton.disabled = false; return; }
+    if (cities.length === 0) { container.classList.add('hidden'); if(submitButton) submitButton.disabled = false; return; }
 
     cities.forEach(city => {
         const key = `${city.name}-${city.country}`;
@@ -77,11 +78,13 @@ function renderSuggestions(cities, container, submitButton, onSelect) {
         div.textContent = displayName;
         div.className = 'suggestion-item';
         div.onclick = () => {
-            container.previousElementSibling.value = displayName;
+            const input = container.previousElementSibling;
+            if(input) input.value = displayName;
+            
             container.classList.add('hidden');
             const cityData = { name: city.name, country: getCountryName(city.country), lat: city.lat, lon: city.lon };
             onSelect(cityData);
-            submitButton.disabled = false;
+            if(submitButton) submitButton.disabled = false;
         };
         container.appendChild(div);
     });
@@ -93,14 +96,16 @@ export function setupCityInput(inputId, suggestionsId, submitBtnId, onSelectCity
     const container = document.getElementById(suggestionsId);
     const btn = document.getElementById(submitBtnId);
 
+    if (!input || !container) return;
+
     input.addEventListener('input', (event) => {
         clearTimeout(debounceTimer);
         const query = event.target.value.trim();
         
-        onSelectCity(null); // Reset selectie bij typen
-        btn.disabled = true;
+        onSelectCity(null);
+        if(btn) btn.disabled = true;
 
-        if (query.length < 3) { container.classList.add('hidden'); btn.disabled = false; return; }
+        if (query.length < 2) { container.classList.add('hidden'); return; }
         
         debounceTimer = setTimeout(() => {
             fetchCitySuggestions(query, (cities) => {
@@ -110,24 +115,43 @@ export function setupCityInput(inputId, suggestionsId, submitBtnId, onSelectCity
     });
 }
 
-// --- Map Logic ---
+// --- Map Logic (NUCLEAR OPTION: NO REPEAT) ---
 let mapInstances = {};
 let mapMarkers = {};
 
 export function initMap(gameType, mapId, onLocationSelected) {
-    if (mapInstances[gameType]) { mapInstances[gameType].invalidateSize(); return; }
+    if (mapInstances[gameType]) { 
+        mapInstances[gameType].invalidateSize(); 
+        return; 
+    }
     
-    const map = L.map(mapId).setView([52.0, 5.0], 4);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    // Wereldgrenzen definiëren
+    const worldBounds = [[-90, -180], [90, 180]];
+
+    const map = L.map(mapId, { 
+        minZoom: 2, // Niet te ver uitzoomen
+        maxBounds: worldBounds, // De camera mag hier niet buiten
+        maxBoundsViscosity: 1.0, // Harde muur (geen stuiteren)
+        worldCopyJump: false // Voorkom springen naar kopieën
+    }).setView([20, 0], 2);
+    
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+        maxZoom: 19,
+        noWrap: true, // CRUCIAAL: Stop het herhalen van tegels
+        bounds: worldBounds, // Laad geen tegels buiten de wereld
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
     
     map.on('click', async (e) => {
-        const lat = e.latlng.lat;
-        const lon = e.latlng.lng;
+        // Zelfs met noWrap gebruiken we .wrap() voor de zekerheid, 
+        // zodat de API altijd geldige coördinaten krijgt.
+        const wrapped = e.latlng.wrap();
+        const lat = wrapped.lat;
+        const lon = wrapped.lng;
         
         if (mapMarkers[gameType]) map.removeLayer(mapMarkers[gameType]);
         mapMarkers[gameType] = L.marker([lat, lon]).addTo(map);
 
-        // Notify that loading started
         onLocationSelected(null, "Zoeken...");
 
         try {

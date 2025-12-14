@@ -8,6 +8,12 @@ let selectedCityData = null;
 let isMapMode = false;
 let myChart = null;
 
+// Helper voor veilige tekst updates
+function safeSetText(id, text) {
+    const el = document.getElementById(id);
+    if(el) el.textContent = text;
+}
+
 export function init(mode) {
     isMapMode = (mode === 'map');
     secretNumber = Math.floor(Math.random() * (GUESSING_MAX_TARGET - GUESSING_MIN_TARGET + 1)) + GUESSING_MIN_TARGET;
@@ -19,26 +25,26 @@ export function init(mode) {
     const btn = document.getElementById('guessing-submit-button');
     const mapContainer = document.getElementById('guessing-map-container');
 
-    input.value = '';
-    btn.disabled = true;
+    if(input) input.value = '';
+    if(btn) btn.disabled = true;
     
     document.getElementById('guessing-game-board').classList.remove('hidden');
     document.getElementById('guessing-end-screen').classList.add('hidden');
     document.getElementById('guessing-turn-result').classList.add('hidden');
 
     if (isMapMode) {
-        document.getElementById('guessing-mode-display').textContent = "Modus: Landkaart";
+        safeSetText('guessing-mode-display', "Modus: Landkaart");
         mapContainer.classList.remove('hidden');
-        input.readOnly = true;
+        if(input) input.readOnly = true;
         setTimeout(() => initMap('guessing', 'guessing-map', (city, label) => {
             selectedCityData = city;
-            if(label) input.value = label;
-            btn.disabled = !city;
+            if(label && input) input.value = label;
+            if(btn) btn.disabled = !city;
         }), 100);
     } else {
-        document.getElementById('guessing-mode-display').textContent = "Modus: Typen";
+        safeSetText('guessing-mode-display', "Modus: Typen");
         mapContainer.classList.add('hidden');
-        input.readOnly = false;
+        if(input) input.readOnly = false;
         setupCityInput('guessing-city-input', 'guessing-suggestions', 'guessing-submit-button', (city) => {
             selectedCityData = city;
         });
@@ -47,8 +53,8 @@ export function init(mode) {
     updateDisplay();
     renderHistory();
 
-    btn.onclick = handleTurn;
-    input.onkeypress = (e) => { if(e.key === 'Enter') handleTurn(); };
+    if(btn) btn.onclick = handleTurn;
+    if(input) input.onkeypress = (e) => { if(e.key === 'Enter') handleTurn(); };
 }
 
 async function handleTurn() {
@@ -79,8 +85,11 @@ async function handleTurn() {
     resultDiv.classList.remove('hidden');
     
     selectedCityData = null;
-    document.getElementById('guessing-city-input').value = '';
-    document.getElementById('guessing-submit-button').disabled = true;
+    const input = document.getElementById('guessing-city-input');
+    if(input) input.value = '';
+    const btn = document.getElementById('guessing-submit-button');
+    if(btn) btn.disabled = true;
+    
     updateDisplay();
     renderHistory();
     if (temp === secretNumber) endGame(true);
@@ -88,12 +97,14 @@ async function handleTurn() {
 }
 
 function updateDisplay() {
-    document.getElementById('guessing-turns-display').textContent = `${turnsLeft}`;
-    document.getElementById('guessing-target-display').textContent = "??";
+    safeSetText('guessing-turns-display', `${turnsLeft}`);
+    safeSetText('guessing-target-display', "??");
 }
 
 function renderHistory() {
     const list = document.getElementById('guessing-history-log');
+    if(!list) return;
+    
     list.innerHTML = '';
     turnHistory.slice().reverse().forEach((turn) => {
         const li = document.createElement('li');
@@ -101,16 +112,18 @@ function renderHistory() {
         li.innerHTML = `<span>${turn.name}</span> <span class="font-bold">${turn.temp}°C (${turn.feedback})</span>`;
         list.appendChild(li);
     });
-    document.getElementById('guessing-history-placeholder').style.display = turnHistory.length ? 'none' : 'block';
+    const placeholder = document.getElementById('guessing-history-placeholder');
+    if(placeholder) placeholder.style.display = turnHistory.length ? 'none' : 'block';
 }
 
 function endGame(won) {
     document.getElementById('guessing-game-board').classList.add('hidden');
     document.getElementById('guessing-end-screen').classList.remove('hidden');
-    document.getElementById('guessing-end-title').textContent = won ? "GEVONDEN!" : "HELAAS!";
-    document.getElementById('guessing-end-message').textContent = `Het getal was ${secretNumber}°C.`;
+    
+    safeSetText('guessing-end-title', won ? "GEVONDEN!" : "HELAAS!");
+    safeSetText('guessing-end-message', `Het getal was ${secretNumber}°C.`);
 
-    if(won) confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+    if(won && typeof confetti === "function") confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
 
     // Stats
     let maxTemp = -999;
@@ -119,45 +132,48 @@ function endGame(won) {
     let minCity = "-";
 
     const list = document.getElementById('guessing-summary-list');
-    list.innerHTML = '';
+    if(list) {
+        list.innerHTML = '';
+        turnHistory.forEach(turn => {
+            if(turn.temp > maxTemp) { maxTemp = turn.temp; maxCity = turn.name; }
+            if(turn.temp < minTemp) { minTemp = turn.temp; minCity = turn.name; }
 
-    turnHistory.forEach(turn => {
-        if(turn.temp > maxTemp) { maxTemp = turn.temp; maxCity = turn.name; }
-        if(turn.temp < minTemp) { minTemp = turn.temp; minCity = turn.name; }
+            const li = document.createElement('li');
+            li.className = "flex justify-between border-b border-gray-100 pb-1";
+            li.innerHTML = `<span>${turn.name}</span> <span class="font-bold">${turn.temp}°C (${turn.feedback})</span>`;
+            list.appendChild(li);
+        });
+    }
 
-        const li = document.createElement('li');
-        li.className = "flex justify-between border-b border-gray-100 pb-1";
-        li.innerHTML = `<span>${turn.name}</span> <span class="font-bold">${turn.temp}°C (${turn.feedback})</span>`;
-        list.appendChild(li);
-    });
-
-    document.getElementById('guess-stat-hot').textContent = maxCity !== "-" ? `${maxCity} (${maxTemp}°C)` : "-";
-    document.getElementById('guess-stat-cold').textContent = minCity !== "-" ? `${minCity} (${minTemp}°C)` : "-";
+    safeSetText('guess-stat-hot', maxCity !== "-" ? `${maxCity} (${maxTemp}°C)` : "-");
+    safeSetText('guess-stat-cold', minCity !== "-" ? `${minCity} (${minTemp}°C)` : "-");
 
     // Grafiek
-    if(myChart) myChart.destroy();
     const ctx = document.getElementById('guessing-chart');
-    
-    myChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: turnHistory.map(t => t.name),
-            datasets: [{
-                label: 'Gekozen Temperatuur',
-                data: turnHistory.map(t => t.temp),
-                backgroundColor: turnHistory.map(t => t.temp === secretNumber ? '#22c55e' : '#3b82f6'),
-            }, {
-                type: 'line',
-                label: 'Doel',
-                data: Array(turnHistory.length).fill(secretNumber),
-                borderColor: '#ef4444',
-                borderDash: [5, 5],
-                pointRadius: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false
-        }
-    });
+    if(ctx) {
+        if(myChart) myChart.destroy();
+        
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: turnHistory.map(t => t.name),
+                datasets: [{
+                    label: 'Gekozen Temperatuur',
+                    data: turnHistory.map(t => t.temp),
+                    backgroundColor: turnHistory.map(t => t.temp === secretNumber ? '#22c55e' : '#3b82f6'),
+                }, {
+                    type: 'line',
+                    label: 'Doel',
+                    data: Array(turnHistory.length).fill(secretNumber),
+                    borderColor: '#ef4444',
+                    borderDash: [5, 5],
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
 }
