@@ -1,5 +1,6 @@
-import { DEDUCTION_MAX_TURNS, DEDUCTION_MIN_TARGET, DEDUCTION_MAX_TARGET } from './config.js';
-import { fetchTemperature, initMap, setupCityInput, getFlagEmoji, getCountryName } from './utils.js';
+// AANGEPASTE IMPORTS (../)
+import { DEDUCTION_MAX_TURNS, DEDUCTION_MIN_TARGET, DEDUCTION_MAX_TARGET } from '../config.js';
+import { fetchTemperature, initMap, setupCityInput, getFlagEmoji, getCountryName } from '../utils.js';
 
 let targetTemp = 0;
 let initialTarget = 0;
@@ -70,7 +71,6 @@ async function handleTurn() {
     targetTemp -= temp;
     turnsLeft--;
     
-    // Voeg vlag toe aan history object
     turnHistory.push({ 
         name: selectedCityData.name, 
         country: selectedCityData.country, 

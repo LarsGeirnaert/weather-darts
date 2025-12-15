@@ -9,17 +9,13 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@6.11.0/css/flag-icons.min.css"/>
-
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div id="main-menu" class="container-card p-8 md:p-12 text-center animate-[fadeIn_0.5s_ease-out]">
         <h1 class="text-6xl font-black text-slate-800 mb-2 tracking-tighter drop-shadow-sm">Weer Games</h1>
         <p class="text-xl text-slate-500 mb-10 font-medium">Kies je uitdaging en speelwijze</p>
-
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div class="space-y-4 p-6 bg-teal-50/50 rounded-2xl border border-teal-100 hover:bg-teal-50 transition duration-300">
                 <div class="text-4xl mb-2">📉</div>
@@ -51,12 +47,10 @@
         </div>
         <div id="status-message" class="mt-8 font-semibold text-slate-400 text-sm animate-pulse">Verbinding maken...</div>
     </div>
-
     <div id="game-container" class="container-card p-6 md:p-8 hidden relative">
         <button id="back-to-menu" class="absolute top-6 left-6 text-slate-400 hover:text-slate-700 font-bold flex items-center transition-colors z-50">
             <span class="text-xl mr-1">❮</span> Menu
         </button>
-
         <div id="deduction-game" class="hidden pt-8">
              <h1 class="text-4xl font-black text-center text-slate-800 mb-8">Temperatuur Aftrekken</h1>
              <div id="deduction-game-board" class="space-y-6 hidden">
@@ -88,7 +82,6 @@
                 <button onclick="location.reload()" class="menu-button bg-slate-800 text-white w-full md:w-auto px-8">Opnieuw Spelen 🔄</button>
             </div>
         </div>
-
         <div id="guessing-game" class="hidden pt-8">
              <h1 class="text-4xl font-black text-center text-slate-800 mb-8">Raad de Temperatuur</h1>
              <div id="guessing-game-board" class="space-y-6 hidden">
@@ -124,7 +117,6 @@
                 <button onclick="location.reload()" class="menu-button bg-slate-800 text-white px-8">Opnieuw Spelen 🔄</button>
             </div>
         </div>
-
         <div id="duel-game" class="hidden pt-4">
             <h1 class="text-3xl font-black text-center text-slate-800 mb-6">Online Duel ⚔️</h1>
             <div id="duel-lobby" class="text-center space-y-8 py-8">
@@ -182,7 +174,6 @@
                 </div>
             </div>
         </div>
-
         <div id="millionaire-game" class="hidden pt-4">
             <div class="text-center mb-6">
                 <h1 class="text-4xl font-black text-slate-800 tracking-tight">De Weer Miljonair 💎</h1>
@@ -191,7 +182,6 @@
                     <div class="bg-green-100 px-4 py-1 rounded-full text-green-800 font-bold border border-green-300 shadow-sm">Prijs: €<span id="mil-money">0</span></div>
                 </div>
             </div>
-
             <div id="mil-game-area" class="space-y-6 max-w-2xl mx-auto">
                 <div class="p-8 bg-slate-800 rounded-2xl border-4 border-slate-600 shadow-2xl relative overflow-hidden">
                     <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent opacity-50"></div>
@@ -200,26 +190,22 @@
                         Welke stad is het warmst?
                     </h2>
                 </div>
-
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <button id="opt-0" class="mil-option"><span class="opt-letter">A:</span> <span class="opt-text">...</span></button>
                     <button id="opt-1" class="mil-option"><span class="opt-letter">B:</span> <span class="opt-text">...</span></button>
                     <button id="opt-2" class="mil-option"><span class="opt-letter">C:</span> <span class="opt-text">...</span></button>
                     <button id="opt-3" class="mil-option"><span class="opt-letter">D:</span> <span class="opt-text">...</span></button>
                 </div>
-
                 <div class="flex justify-center gap-6 mt-8">
                     <button id="lifeline-5050" class="lifeline-btn" title="50:50">✂️</button>
                     <button id="lifeline-audience" class="lifeline-btn" title="Vraag Publiek">👥</button>
                     <button id="lifeline-call" class="lifeline-btn" title="Bel Weerman">📞</button>
                 </div>
             </div>
-
             <div id="mil-loading" class="hidden text-center py-10">
                 <div class="animate-spin text-4xl mb-4 text-blue-600">⏳</div>
                 <p class="text-slate-500 font-bold">Volgende vraag laden...</p>
             </div>
-
             <div id="mil-end-screen" class="hidden text-center p-8 bg-white/90 backdrop-blur rounded-3xl border-4 border-slate-200">
                 <h2 id="mil-end-title" class="text-5xl font-black mb-4 text-slate-800"></h2>
                 <p class="text-xl text-slate-600 mb-6">Je gaat naar huis met:</p>
@@ -227,9 +213,7 @@
                 <button onclick="location.reload()" class="menu-button bg-slate-800 text-white px-10">Opnieuw Spelen</button>
             </div>
         </div>
-
     </div>
-
     <script type="module" src="main.js?v=2"></script>
 </body>
 </html>

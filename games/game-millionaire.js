@@ -1,4 +1,5 @@
-import { fetchTemperature, getFlagEmoji, getCountryName } from './utils.js';
+// AANGEPASTE IMPORT (../)
+import { fetchTemperature, getFlagEmoji, getCountryName } from '../utils.js';
 
 const CITIES = [
     // --- EUROPA ---
@@ -156,7 +157,6 @@ async function loadRound() {
         const btn = document.getElementById(`opt-${i}`);
         const flag = getFlagEmoji(currentOptions[i].country);
         
-        // LET OP: .innerHTML i.p.v. .textContent omdat 'flag' HTML bevat
         if (currentQuestionType === 'specific_city') {
             btn.querySelector('.opt-text').textContent = `${currentOptions[i].temp}°C`;
         } else {
@@ -206,8 +206,6 @@ function generateQuestionAndAnswer() {
         const subjectIndex = Math.floor(Math.random() * 4);
         const subjectCity = currentOptions[subjectIndex];
         const flag = getFlagEmoji(subjectCity.country);
-        const countryName = getCountryName(subjectCity.country);
-        // Gebruik innerHTML voor de titel zodat de vlag werkt
         titleEl.innerHTML = `Hoe warm is het in ${subjectCity.name} ${flag}? 🌡️`;
         correctAnswerIndex = subjectIndex;
     }
@@ -307,7 +305,7 @@ function useAudience() {
         antwoordTekst = `${currentOptions[correctAnswerIndex].name} ${flag}`;
     }
 
-    alert(`📊 Het publiek stemt massaal op ${label} (${antwoordTekst})! (72%)`); // Alert kan geen HTML, dus hier zie je helaas <span..>, maar dat is acceptabel voor nu of we moeten een custom modal maken.
+    alert(`📊 Het publiek stemt massaal op ${label} (${antwoordTekst})! (72%)`);
 }
 
 function usePhoneAFriend() {

@@ -1,5 +1,5 @@
-import { GUESSING_MAX_TURNS, GUESSING_MIN_TARGET, GUESSING_MAX_TARGET } from './config.js';
-import { fetchTemperature, initMap, setupCityInput, getFlagEmoji } from './utils.js';
+import { GUESSING_MAX_TURNS, GUESSING_MIN_TARGET, GUESSING_MAX_TARGET } from '../config.js';
+import { fetchTemperature, initMap, setupCityInput, getFlagEmoji } from '../utils.js';
 
 let secretNumber = 0;
 let turnsLeft = GUESSING_MAX_TURNS;
@@ -8,9 +8,10 @@ let selectedCityData = null;
 let isMapMode = false;
 let myChart = null;
 
-function safeSetText(id, text) {
+// FIX: Gebruik innerHTML zodat de vlag-code als plaatje wordt getoond
+function safeSetText(id, html) {
     const el = document.getElementById(id);
-    if(el) el.textContent = text;
+    if(el) el.innerHTML = html;
 }
 
 export function init(mode) {
@@ -60,8 +61,9 @@ async function handleTurn() {
     if (turnsLeft === 0 || !selectedCityData) return;
     const resultDiv = document.getElementById('guessing-turn-result');
 
-    if (turnHistory.some(t => t.country === selectedCityData.country)) {
-        resultDiv.innerHTML = `<span class="text-red-600 font-bold">❌ Al een stad in dit land!</span>`;
+    // Check of stad al gekozen is (op basis van naam + land)
+    if (turnHistory.some(t => t.name === selectedCityData.name && t.country === selectedCityData.country)) {
+        resultDiv.innerHTML = `<span class="text-red-600 font-bold">❌ Je hebt deze stad al gegokt!</span>`;
         resultDiv.classList.remove('hidden');
         return;
     }
@@ -137,6 +139,7 @@ function endGame(won) {
         list.innerHTML = '';
         turnHistory.forEach(turn => {
             const flag = getFlagEmoji(turn.country);
+            // Bouw de string met HTML voor de statistieken
             if(turn.temp > maxTemp) { maxTemp = turn.temp; maxCity = `${turn.name} ${flag}`; }
             if(turn.temp < minTemp) { minTemp = turn.temp; minCity = `${turn.name} ${flag}`; }
 
@@ -147,12 +150,14 @@ function endGame(won) {
         });
     }
 
+    // Hier wordt nu innerHTML gebruikt via safeSetText, dus de vlaggen werken!
     safeSetText('guess-stat-hot', maxCity !== "-" ? `${maxCity} (${maxTemp}°C)` : "-");
     safeSetText('guess-stat-cold', minCity !== "-" ? `${minCity} (${minTemp}°C)` : "-");
 
     const ctx = document.getElementById('guessing-chart');
     if(ctx) {
         if(myChart) myChart.destroy();
+        // Voor de grafiek strippen we de vlaggen (Chart.js ondersteunt geen HTML)
         myChart = new Chart(ctx, {
             type: 'bar',
             data: {

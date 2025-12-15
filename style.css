@@ -10,8 +10,10 @@ body {
     justify-content: center;
     padding: 1rem;
     color: #1e293b;
-    
-    /* Dynamische Achtergrond */
+    position: relative;
+    overflow: hidden; /* Belangrijk voor zwevende deeltjes */
+
+    /* Diepe, levendige gradient */
     background: linear-gradient(-45deg, #0f172a, #1e3a8a, #0d9488, #4f46e5);
     background-size: 400% 400%;
     animation: gradientBG 15s ease infinite;
@@ -23,10 +25,29 @@ body {
     100% { background-position: 0% 50%; }
 }
 
+/* --- ZWEVENDE ACHTERGROND DEELTJES --- */
+.weather-particle {
+    position: absolute;
+    bottom: -10vh;
+    font-size: 2rem;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 0;
+    text-shadow: 0 0 10px rgba(255,255,255,0.2);
+    animation: floatUp linear infinite;
+}
+
+@keyframes floatUp {
+    0% { transform: translateY(0) rotate(0deg) scale(0.8); opacity: 0; }
+    20% { opacity: 0.15; }
+    80% { opacity: 0.15; }
+    100% { transform: translateY(-120vh) rotate(360deg) scale(1.2); opacity: 0; }
+}
+
 /* --- GLASSMORPHISM CARDS --- */
 .container-card {
-    background: rgba(255, 255, 255, 0.85); /* Half doorzichtig wit */
-    backdrop-filter: blur(12px); /* Het "Frosted" effect */
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.6);
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
@@ -34,14 +55,47 @@ body {
     max-width: 900px;
     width: 100%;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    z-index: 10; /* Boven de deeltjes */
 }
 
-#main-menu { max-width: 900px; }
+/* --- ANIMATIES & EFFECTEN --- */
+.shake {
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+}
 
-/* --- TYPOGRAFIE --- */
+@keyframes shake {
+    10%, 90% { transform: translate3d(-2px, 0, 0); }
+    20%, 80% { transform: translate3d(4px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+    40%, 60% { transform: translate3d(6px, 0, 0); }
+}
+
+.floating-text {
+    position: absolute;
+    font-weight: 900;
+    font-size: 1.5rem;
+    pointer-events: none;
+    animation: floatText 1.5s ease-out forwards;
+    z-index: 50;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    white-space: nowrap;
+}
+
+.text-damage { color: #ef4444; }
+.text-heal { color: #22c55e; }
+
+@keyframes floatText {
+    0% { opacity: 1; transform: translateY(0) scale(0.5); }
+    20% { transform: translateY(-20px) scale(1.2); }
+    100% { opacity: 0; transform: translateY(-60px) scale(1); }
+}
+
+/* --- TYPOGRAFIE & LAYOUT --- */
 h1, h2, h3 { letter-spacing: -0.02em; }
+.hidden { display: none !important; }
 
-/* --- KNOPPEN (GLOWING & DYNAMIC) --- */
+/* --- KNOPPEN --- */
 button { cursor: pointer; user-select: none; }
 
 .menu-button {
@@ -58,17 +112,15 @@ button { cursor: pointer; user-select: none; }
     box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
-/* Specifieke knop kleuren met gradients */
 #btn-deduction-text, #btn-deduction-map { background-image: linear-gradient(to right, #0d9488 0%, #115e59 51%, #0d9488 100%); }
 #btn-guessing-text, #btn-guessing-map { background-image: linear-gradient(to right, #7c3aed 0%, #5b21b6 51%, #7c3aed 100%); }
 #btn-duel-text { background-image: linear-gradient(to right, #f97316 0%, #ea580c 51%, #f97316 100%); }
 
 .menu-button:hover {
-    background-position: right center; /* Gradient shift */
+    background-position: right center;
     transform: translateY(-3px) scale(1.02);
     box-shadow: 0 10px 20px rgba(0,0,0,0.2);
 }
-
 .menu-button:active { transform: translateY(1px) scale(0.98); }
 
 /* Algemene actie knoppen */
@@ -82,7 +134,6 @@ button { cursor: pointer; user-select: none; }
     box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
 }
 
-/* Specifieke stijl voor Miljonair knop in menu */
 #btn-millionaire {
     background-image: linear-gradient(to right, #eab308 0%, #ca8a04 51%, #eab308 100%);
     box-shadow: 0 4px 15px rgba(234, 179, 8, 0.3);
@@ -110,7 +161,6 @@ input[type="text"] {
     font-weight: 500;
     font-size: 1.1rem;
 }
-
 input[type="text"]:focus {
     border-color: #3b82f6;
     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
@@ -128,21 +178,10 @@ input[type="text"]:focus {
     margin-top: 4px;
     animation: fadeIn 0.2s ease-out;
 }
+.suggestion-item { padding: 12px 16px; cursor: pointer; transition: background 0.1s; font-weight: 500; color: #475569; }
+.suggestion-item:hover { background-color: #eff6ff; color: #1d4ed8; }
 
-.suggestion-item {
-    padding: 12px 16px;
-    cursor: pointer;
-    transition: background 0.1s;
-    font-weight: 500;
-    color: #475569;
-}
-
-.suggestion-item:hover {
-    background-color: #eff6ff;
-    color: #1d4ed8;
-}
-
-/* --- SCORE PANELS & GAME ELEMENTS --- */
+/* --- SCORE PANELS --- */
 .score-panel {
     background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
     border-radius: 16px;
@@ -150,236 +189,83 @@ input[type="text"]:focus {
     position: relative;
     overflow: hidden;
 }
-
-/* Glans effect over score panel */
 .score-panel::before {
-    content: '';
-    position: absolute;
-    top: 0; left: -100%;
-    width: 50%; height: 100%;
+    content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
     background: linear-gradient(to right, transparent, rgba(255,255,255,0.2), transparent);
-    transform: skewX(-25deg);
-    animation: shine 6s infinite;
+    transform: skewX(-25deg); animation: shine 6s infinite;
 }
+@keyframes shine { 0%, 80% { left: -100%; } 100% { left: 200%; } }
 
-@keyframes shine {
-    0%, 80% { left: -100%; }
-    100% { left: 200%; }
-}
-
-/* --- MAP --- */
+/* --- MAPS --- */
 #deduction-map-container, #guessing-map-container {
-    border-radius: 16px;
-    overflow: hidden;
+    border-radius: 16px; overflow: hidden;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
     border: 4px solid white;
 }
 
-/* --- DUEL SPECIFICS (HP BARS) --- */
+/* --- DUEL HP BARS --- */
 .hp-track {
-    background-color: #cbd5e1;
-    height: 16px;
-    border-radius: 99px;
-    overflow: hidden;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
-    border: 1px solid white;
-    position: relative;
+    background-color: #cbd5e1; height: 16px; border-radius: 99px; overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.15); border: 1px solid white; position: relative;
 }
-
 .hp-fill {
-    height: 100%;
-    border-radius: 99px;
-    transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bounce effect */
-    position: relative;
-    overflow: hidden;
+    height: 100%; border-radius: 99px; transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative; overflow: hidden;
 }
-
 .hp-fill::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
+    content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
     background-image: linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);
-    background-size: 1rem 1rem;
-    animation: moveStripes 1s linear infinite;
+    background-size: 1rem 1rem; animation: moveStripes 1s linear infinite;
 }
-
 @keyframes moveStripes { from { background-position: 1rem 0; } to { background-position: 0 0; } }
-
 .hp-blue { background: linear-gradient(to bottom, #60a5fa, #2563eb); box-shadow: 0 0 10px #3b82f6; }
 .hp-red { background: linear-gradient(to bottom, #f87171, #dc2626); box-shadow: 0 0 10px #ef4444; }
 .hp-fill-right { margin-left: auto; }
 
-/* Resultaat Grote Balk */
+/* Result Bar */
 .result-hp-wrapper {
-    background-color: #0f172a;
-    height: 36px;
-    border-radius: 8px;
-    padding: 4px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-    position: relative;
-    margin-bottom: 2rem;
-    border: 2px solid #334155;
+    background-color: #0f172a; height: 36px; border-radius: 8px; padding: 4px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); position: relative; margin-bottom: 2rem; border: 2px solid #334155;
 }
-
 .result-hp-fill {
-    background: linear-gradient(90deg, #4ade80, #22c55e);
-    height: 100%;
-    width: 100%;
-    border-radius: 4px;
-    transition: width 1s ease-out;
-    box-shadow: 0 0 15px #4ade80;
+    background: linear-gradient(90deg, #4ade80, #22c55e); height: 100%; width: 100%;
+    border-radius: 4px; transition: width 1s ease-out; box-shadow: 0 0 15px #4ade80;
 }
-
 .result-hp-text {
-    position: absolute;
-    width: 100%;
-    text-align: center;
-    top: 50%;
-    transform: translateY(-50%);
-    color: white;
-    font-weight: 900;
-    text-shadow: 0 2px 2px rgba(0,0,0,0.8);
-    z-index: 10;
-    letter-spacing: 1px;
+    position: absolute; width: 100%; text-align: center; top: 50%; transform: translateY(-50%);
+    color: white; font-weight: 900; text-shadow: 0 2px 2px rgba(0,0,0,0.8); z-index: 10; letter-spacing: 1px;
 }
 
-.city-badge {
-    display: inline-block;
-    background: rgba(255, 255, 255, 0.7);
-    border: 1px solid #cbd5e1;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #475569;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    transition: transform 0.2s;
-}
-.city-badge:hover {
-    transform: scale(1.05);
-    background: white;
-    color: #0f172a;
-}
-
-/* --- MILLIONAIRE GAME STYLES --- */
+/* --- MILLIONAIRE --- */
 .mil-option {
     background: linear-gradient(to bottom, #1e293b, #0f172a);
-    border: 2px solid #475569;
-    border-radius: 12px;
-    padding: 1.5rem 1.5rem;
-    text-align: left;
-    color: white;
-    font-size: 1.1rem;
-    font-weight: 700;
-    position: relative;
-    transition: all 0.2s;
-    box-shadow: 0 6px 10px rgba(0,0,0,0.3);
-    display: flex;
-    align-items: center;
-    width: 100%;
+    border: 2px solid #475569; border-radius: 12px; padding: 1.5rem; text-align: left;
+    color: white; font-size: 1.1rem; font-weight: 700; position: relative; transition: all 0.2s;
+    box-shadow: 0 6px 10px rgba(0,0,0,0.3); display: flex; align-items: center; width: 100%;
 }
-
 .mil-option:hover:not(:disabled) {
-    background: linear-gradient(to bottom, #334155, #1e293b);
-    border-color: #fbbf24;
-    transform: translateY(-2px);
-    box-shadow: 0 10px 15px rgba(0,0,0,0.4);
+    background: linear-gradient(to bottom, #334155, #1e293b); border-color: #fbbf24;
+    transform: translateY(-2px); box-shadow: 0 10px 15px rgba(0,0,0,0.4);
 }
-
-.mil-option:active:not(:disabled) { transform: translateY(1px); }
-
-.opt-letter {
-    color: #fbbf24;
-    margin-right: 1rem;
-    font-weight: 900;
-    font-size: 1.3rem;
-}
-
-/* Statussen */
-.mil-selected {
-    background: #f59e0b !important;
-    border-color: #fcd34d !important;
-    color: black;
-}
+.opt-letter { color: #fbbf24; margin-right: 1rem; font-weight: 900; font-size: 1.3rem; }
+.mil-selected { background: #f59e0b !important; border-color: #fcd34d !important; color: black; }
 .mil-selected .opt-letter { color: black; }
+.mil-correct { background: #22c55e !important; border-color: #86efac !important; box-shadow: 0 0 20px #22c55e; animation: pulse 0.5s; }
+.mil-wrong { background: #ef4444 !important; border-color: #fca5a5 !important; opacity: 0.8; }
 
-.mil-correct {
-    background: #22c55e !important;
-    border-color: #86efac !important;
-    box-shadow: 0 0 20px #22c55e;
-    animation: pulse 0.5s;
-}
-
-.mil-wrong {
-    background: #ef4444 !important;
-    border-color: #fca5a5 !important;
-    opacity: 0.8;
-}
-
-/* Hulplijnen Knoppen */
 .lifeline-btn {
-    background: white;
-    border: 2px solid #cbd5e1;
-    border-radius: 50%;
-    width: 64px;
-    height: 64px;
-    font-size: 1.8rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: 0.2s;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    
-    /* BELANGRIJK VOOR DE BADGE */
-    position: relative; 
-    overflow: visible; 
+    background: white; border: 2px solid #cbd5e1; border-radius: 50%; width: 64px; height: 64px;
+    font-size: 1.8rem; display: flex; align-items: center; justify-content: center; transition: 0.2s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; overflow: visible;
 }
-
-.lifeline-btn:hover:not(:disabled) {
-    transform: scale(1.1) rotate(5deg);
-    border-color: #3b82f6;
-    background: #eff6ff;
-}
-
-.lifeline-btn:disabled {
-    opacity: 0.4;
-    filter: grayscale(100%);
-    cursor: not-allowed;
-    transform: scale(0.9);
-}
-
-/* NIEUW: DE RODE BADGE RECHTSBOVEN */
+.lifeline-btn:hover:not(:disabled) { transform: scale(1.1) rotate(5deg); border-color: #3b82f6; background: #eff6ff; }
+.lifeline-btn:disabled { opacity: 0.4; filter: grayscale(100%); cursor: not-allowed; transform: scale(0.9); }
 .lifeline-badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background-color: #ef4444; /* Rood */
-    color: white;
-    font-size: 0.85rem;
-    font-weight: bold;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    z-index: 10;
-    animation: bounceIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: absolute; top: -5px; right: -5px; background-color: #ef4444; color: white;
+    font-size: 0.85rem; font-weight: bold; width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 10; animation: bounceIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-@keyframes bounceIn {
-    0% { transform: scale(0); }
-    100% { transform: scale(1); }
-}
-
-/* --- ANIMATIES --- */
+@keyframes bounceIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-.hidden { display: none !important; }
-
-/* --- CUSTOM SCROLLBAR --- */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }

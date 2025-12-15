@@ -6,19 +6,15 @@ export function getCountryName(code) {
     try { return regionNames.of(code); } catch (e) { return code; }
 }
 
-// AANGEPAST: Geeft nu HTML terug voor een vlag icoon (werkt op Windows!)
 export function getFlagEmoji(countryCode) {
     if (!countryCode) return '';
     return `<span class="fi fi-${countryCode.toLowerCase()} shadow-sm rounded-[2px]" style="font-size: 1.2em; margin-left: 6px;"></span>`;
 }
 
-// ... (Rest van het bestand blijft hetzelfde als je vorige versie) ...
 export async function testApiConnection() {
     const msg = document.getElementById('status-message');
     if(!msg) return;
-    
     msg.textContent = "🔬 Verbinding testen...";
-    
     try {
         const response = await fetch(`${GEO_API_URL}?q=London&limit=1&appid=${API_KEY}`);
         if (response.status === 200) {
@@ -69,7 +65,6 @@ function renderSuggestions(cities, container, submitButton, onSelect) {
     container.innerHTML = '';
     const seen = new Set();
     if(submitButton) submitButton.disabled = true;
-
     if (cities.length === 0) { container.classList.add('hidden'); if(submitButton) submitButton.disabled = false; return; }
 
     cities.forEach(city => {
@@ -80,14 +75,12 @@ function renderSuggestions(cities, container, submitButton, onSelect) {
         const div = document.createElement('div');
         const flag = getFlagEmoji(city.country);
         const countryName = getCountryName(city.country);
-        
-        // Gebruik innerHTML omdat flag nu HTML is
+
         div.innerHTML = `${city.name}, ${countryName} ${flag}`;
         div.className = 'suggestion-item';
         div.onclick = () => {
             const input = container.previousElementSibling;
-            input.value = `${city.name}, ${countryName}`; // In input veld geen vlaggetje (is text only)
-            
+            input.value = `${city.name}, ${countryName}`;
             container.classList.add('hidden');
             const cityData = { name: city.name, country: city.country, lat: city.lat, lon: city.lon };
             onSelect(cityData);
@@ -102,18 +95,15 @@ export function setupCityInput(inputId, suggestionsId, submitBtnId, onSelectCity
     const input = document.getElementById(inputId);
     const container = document.getElementById(suggestionsId);
     const btn = document.getElementById(submitBtnId);
-
     if (!input || !container) return;
 
     input.addEventListener('input', (event) => {
         clearTimeout(debounceTimer);
         const query = event.target.value.trim();
-        
         onSelectCity(null);
         if(btn) btn.disabled = true;
-
         if (query.length < 2) { container.classList.add('hidden'); return; }
-        
+
         debounceTimer = setTimeout(() => {
             fetchCitySuggestions(query, (cities) => {
                 renderSuggestions(cities, container, btn, onSelectCity);
@@ -126,35 +116,20 @@ let mapInstances = {};
 let mapMarkers = {};
 
 export function initMap(gameType, mapId, onLocationSelected) {
-    if (mapInstances[gameType]) { 
-        mapInstances[gameType].invalidateSize(); 
-        return; 
+    if (mapInstances[gameType]) {
+        mapInstances[gameType].invalidateSize();
+        return;
     }
-    
     const worldBounds = [[-90, -180], [90, 180]];
+    const map = L.map(mapId, { minZoom: 2, maxBounds: worldBounds, maxBoundsViscosity: 1.0, worldCopyJump: false }).setView([20, 0], 2);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, noWrap: true, bounds: worldBounds, attribution: '&copy; OpenStreetMap' }).addTo(map);
 
-    const map = L.map(mapId, { 
-        minZoom: 2, 
-        maxBounds: worldBounds, 
-        maxBoundsViscosity: 1.0, 
-        worldCopyJump: false 
-    }).setView([20, 0], 2);
-    
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-        maxZoom: 19,
-        noWrap: true,
-        bounds: worldBounds,
-        attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
-    
     map.on('click', async (e) => {
         const wrapped = e.latlng.wrap();
         const lat = wrapped.lat;
         const lon = wrapped.lng;
-        
         if (mapMarkers[gameType]) map.removeLayer(mapMarkers[gameType]);
         mapMarkers[gameType] = L.marker([lat, lon]).addTo(map);
-
         onLocationSelected(null, "Zoeken...");
 
         try {
@@ -164,13 +139,47 @@ export function initMap(gameType, mapId, onLocationSelected) {
                 const p = data[0];
                 const cityData = { name: p.name, country: p.country, lat: p.lat, lon: p.lon };
                 const countryName = getCountryName(p.country);
-                // Hier sturen we platte tekst terug voor de input value
                 onLocationSelected(cityData, `${p.name}, ${countryName}`);
             } else {
                 onLocationSelected(null, "Geen stad gevonden.");
             }
         } catch (e) { console.error(e); }
     });
-    
     mapInstances[gameType] = map;
+}
+
+/* ✨ VISUELE EFFECTEN ✨ */
+
+// 1. Confetti Kanon
+export function triggerWinConfetti() {
+    const duration = 3000;
+    const end = Date.now() + duration;
+    (function frame() {
+        confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#3b82f6', '#ef4444', '#eab308'] });
+        confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#3b82f6', '#ef4444', '#eab308'] });
+        if (Date.now() < end) requestAnimationFrame(frame);
+    }());
+}
+
+// 2. Shake Effect
+export function shakeElement(elementId) {
+    const el = document.getElementById(elementId);
+    if (el) {
+        el.classList.remove('shake');
+        void el.offsetWidth; // Trigger reflow
+        el.classList.add('shake');
+    }
+}
+
+// 3. Zwevende Schade/Punten Tekst
+export function showFloatingText(targetElement, text, type = 'damage') {
+    if (!targetElement) return;
+    const rect = targetElement.getBoundingClientRect();
+    const floatingDiv = document.createElement('div');
+    floatingDiv.textContent = text;
+    floatingDiv.className = `floating-text ${type === 'damage' ? 'text-damage' : 'text-heal'}`;
+    floatingDiv.style.left = `${rect.left + rect.width / 2}px`;
+    floatingDiv.style.top = `${rect.top}px`;
+    document.body.appendChild(floatingDiv);
+    setTimeout(() => { floatingDiv.remove(); }, 1500);
 }

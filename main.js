@@ -1,11 +1,32 @@
 import { testApiConnection } from './utils.js';
-import * as deductionGame from './game-deduction.js';
-import * as guessingGame from './game-guessing.js';
-import * as duelGame from './game-duel.js';
-import * as millionaireGame from './game-millionaire.js';
+import * as deductionGame from './games/game-deduction.js';
+import * as guessingGame from './games/game-guessing.js';
+import * as duelGame from './games/game-duel.js';
+import * as millionaireGame from './games/game-millionaire.js';
+
+// Initialiseer de zwevende achtergrond icoontjes
+function initBackgroundEffects() {
+    const icons = ['❄️', '☀️', '☁️', '⚡', '🌈', '🌧️', '🌪️'];
+    const container = document.body;
+    const particleCount = 15;
+
+    for (let i = 0; i < particleCount; i++) {
+        const span = document.createElement('span');
+        span.textContent = icons[Math.floor(Math.random() * icons.length)];
+        span.className = 'weather-particle';
+        
+        span.style.left = Math.random() * 100 + 'vw';
+        span.style.animationDuration = (Math.random() * 10 + 10) + 's';
+        span.style.animationDelay = (Math.random() * 10) + 's';
+        span.style.fontSize = (Math.random() * 2 + 1) + 'rem';
+        
+        container.appendChild(span);
+    }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("🚀 Main.js geladen!");
+    initBackgroundEffects(); // START EFFECTEN
     await testApiConnection();
 
     // DEDUCTION
@@ -24,17 +45,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnDuel = document.getElementById('btn-duel-text');
     if(btnDuel) btnDuel.addEventListener('click', () => startGame('duel', 'text'));
 
-    // MILJONAIR (De knop die niet werkte)
+    // MILJONAIR
     const btnMil = document.getElementById('btn-millionaire');
-    if(btnMil) {
-        console.log("💎 Miljonair knop gevonden!");
-        btnMil.addEventListener('click', () => {
-            console.log("💎 Start quiz...");
-            startGame('millionaire', 'text');
-        });
-    } else {
-        console.error("❌ Kan knop 'btn-millionaire' niet vinden!");
-    }
+    if(btnMil) btnMil.addEventListener('click', () => startGame('millionaire', 'text'));
 
     // Back Button
     const backBtn = document.getElementById('back-to-menu');
@@ -46,11 +59,10 @@ function startGame(game, mode) {
     document.getElementById('main-menu').classList.add('hidden');
     document.getElementById('game-container').classList.remove('hidden');
 
-    // Verberg alle games
     document.getElementById('deduction-game').classList.add('hidden');
     document.getElementById('guessing-game').classList.add('hidden');
     document.getElementById('duel-game').classList.add('hidden');
-    
+
     const milGame = document.getElementById('millionaire-game');
     if(milGame) milGame.classList.add('hidden');
 
@@ -67,8 +79,6 @@ function startGame(game, mode) {
         if(milGame) {
             millionaireGame.init();
             milGame.classList.remove('hidden');
-        } else {
-            alert("❌ Fout: Quiz scherm (id='millionaire-game') niet gevonden in HTML. Ververs de pagina!");
         }
     }
 }

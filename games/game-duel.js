@@ -1,5 +1,6 @@
-import { db, ref, set, onValue, update } from './firebase.js';
-import { fetchTemperature, setupCityInput, getFlagEmoji } from './utils.js';
+// AANGEPASTE IMPORTS (../)
+import { db, ref, set, onValue, update } from '../firebase.js';
+import { fetchTemperature, setupCityInput, getFlagEmoji } from '../utils.js';
 
 let currentRoomId = null;
 let playerRole = null; 
@@ -9,7 +10,7 @@ let isProcessingTurn = false;
 let myChart = null; 
 let lastKnownRound = 0;
 
-// AANGEPAST: Gebruikt nu innerHTML zodat vlag-plaatjes werken
+// Helper: innerHTML voor vlaggen
 function safeSetText(id, htmlContent) {
     const el = document.getElementById(id);
     if (el) el.innerHTML = htmlContent;
@@ -21,15 +22,13 @@ function updateUsedCitiesUI() {
     
     container.innerHTML = '';
     myUsedCities.forEach(cityItem => {
-        // Ondersteuning voor oude data (string) en nieuwe data (object met vlag HTML)
         let displayHtml = cityItem;
         if (typeof cityItem === 'object') {
             displayHtml = `${cityItem.name} ${cityItem.flag}`;
         }
-
         const badge = document.createElement('span');
         badge.className = 'city-badge';
-        badge.innerHTML = displayHtml; // innerHTML voor de vlag span
+        badge.innerHTML = displayHtml; 
         container.appendChild(badge);
     });
 }
@@ -119,7 +118,6 @@ function waitForGameStart() {
         const data = snapshot.val();
         if (!data) return; 
 
-        // DETECTEER NIEUWE RONDE
         if (data.round > lastKnownRound) {
             lastKnownRound = data.round;
             const input = document.getElementById('duel-city-input');
@@ -140,29 +138,22 @@ function waitForGameStart() {
         if (data.scores) {
             const myScore = playerRole === 'host' ? data.scores.host : data.scores.guest;
             const oppScore = playerRole === 'host' ? data.scores.guest : data.scores.host;
-            
             safeSetText('p1-score-text', Math.round(myScore));
             safeSetText('p2-score-text', Math.round(oppScore));
-
-            const myPct = Math.max(0, Math.min(100, myScore));
-            const oppPct = Math.max(0, Math.min(100, oppScore));
-
             const p1Bar = document.getElementById('p1-hp-bar');
             const p2Bar = document.getElementById('p2-hp-bar');
-            if(p1Bar) p1Bar.style.width = `${myPct}%`;
-            if(p2Bar) p2Bar.style.width = `${oppPct}%`;
+            if(p1Bar) p1Bar.style.width = `${Math.max(0, Math.min(100, myScore))}%`;
+            if(p2Bar) p2Bar.style.width = `${Math.max(0, Math.min(100, oppScore))}%`;
         }
 
         if (data.history) {
             Object.values(data.history).forEach(item => {
                 const myMove = playerRole === 'host' ? item.host : item.guest;
                 if(myMove && myMove.guess) {
-                    // Check of we dit object al hebben (op basis van naam)
                     let exists = false;
                     for(let elem of myUsedCities) {
                         if(elem.name === myMove.guess) exists = true;
                     }
-                    
                     if(!exists) {
                         const flagHtml = getFlagEmoji(myMove.country);
                         myUsedCities.add({ name: myMove.guess, flag: flagHtml });
@@ -174,13 +165,10 @@ function waitForGameStart() {
 
         if (data.roundState === 'results') {
              isProcessingTurn = false;
-
              if (data.host?.temp !== undefined && data.guest?.temp !== undefined) {
                  showDuelResults(data);
-                 
                  const myData = playerRole === 'host' ? data.host : data.guest;
                  const btn = document.getElementById('next-round-btn');
-                 
                  if (btn) {
                      if (myData && myData.ready) {
                          btn.textContent = "⏳ Wachten op ander...";
@@ -192,36 +180,26 @@ function waitForGameStart() {
                          btn.classList.remove('opacity-50', 'cursor-not-allowed');
                      }
                  }
-
                  if (playerRole === 'host' && data.host?.ready && data.guest?.ready) {
                      startNextRound();
                  }
              }
-
         } else if (data.roundState === 'game_over') {
              showGameSummary(data);
         } else {
-             // State = 'guessing'
              isProcessingTurn = false;
-             
              document.getElementById('duel-result').classList.add('hidden');
              document.getElementById('duel-play-area').classList.remove('hidden');
-             
              const submitBtn = document.getElementById('duel-submit-btn');
-             if(submitBtn) {
-                 submitBtn.textContent = "Kies & Wacht";
-             }
-             
+             if(submitBtn) submitBtn.textContent = "Kies & Wacht";
              const nextBtn = document.getElementById('next-round-btn');
              if(nextBtn) {
                  nextBtn.disabled = false;
                  nextBtn.textContent = "Volgende Ronde ➡️";
                  nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
              }
-
              const myData = playerRole === 'host' ? data.host : data.guest;
              const input = document.getElementById('duel-city-input');
-             
              if (myData && myData.temp !== undefined) {
                  if(submitBtn) submitBtn.classList.add('hidden');
                  document.getElementById('duel-waiting-msg').classList.remove('hidden');
@@ -253,15 +231,12 @@ function waitForGameStart() {
 }
 
 function setReadyForNextRound() {
-    update(ref(db, `rooms/${currentRoomId}/${playerRole}`), {
-        ready: true
-    });
+    update(ref(db, `rooms/${currentRoomId}/${playerRole}`), { ready: true });
 }
 
 async function submitDuelGuess() {
     if (!duelCityData) return;
 
-    // Check of stad al in myUsedCities zit (op basis van naam)
     let alreadyUsed = false;
     for(let elem of myUsedCities) {
         if(elem.name === duelCityData.name) alreadyUsed = true;
@@ -274,7 +249,6 @@ async function submitDuelGuess() {
     
     const input = document.getElementById('duel-city-input');
     const btn = document.getElementById('duel-submit-btn');
-    
     if(input) input.disabled = true;
     if(btn) btn.classList.add('hidden');
     document.getElementById('duel-waiting-msg').classList.remove('hidden');
@@ -283,14 +257,12 @@ async function submitDuelGuess() {
     const temp = await fetchTemperature(duelCityData, null);
 
     if (temp !== null) {
-        // Voeg toe aan lokale lijst voor directe feedback
         const flagHtml = getFlagEmoji(duelCityData.country);
         myUsedCities.add({ name: duelCityData.name, flag: flagHtml });
         updateUsedCitiesUI();
-        
         update(ref(db, `rooms/${currentRoomId}/${playerRole}`), {
             guess: duelCityData.name,
-            country: duelCityData.country, // SAVE COUNTRY CODE!
+            country: duelCityData.country,
             temp: temp
         });
     }
@@ -301,12 +273,9 @@ function calculateAndSaveScores(data) {
     const hostData = data.host;
     const guestData = data.guest;
     const round = data.round;
-
     let newScores = { ...data.scores };
-    
     const hostDiff = Math.abs(target - hostData.temp);
     const guestDiff = Math.abs(target - guestData.temp);
-
     const historyItem = {
         round: round,
         target: target,
@@ -314,95 +283,68 @@ function calculateAndSaveScores(data) {
         guest: { ...guestData, diff: guestDiff }
     };
 
-    if (hostDiff < guestDiff) {
-        const damage = (guestDiff - hostDiff) * round;
-        newScores.guest -= damage;
-    } else if (guestDiff < hostDiff) {
-        const damage = (hostDiff - guestDiff) * round;
-        newScores.host -= damage;
-    }
+    if (hostDiff < guestDiff) newScores.guest -= (guestDiff - hostDiff) * round;
+    else if (guestDiff < hostDiff) newScores.host -= (hostDiff - guestDiff) * round;
 
     let nextState = 'results';
-    if (newScores.host <= 0 || newScores.guest <= 0) {
-        nextState = 'game_over';
-    }
+    if (newScores.host <= 0 || newScores.guest <= 0) nextState = 'game_over';
 
     const updates = {};
     updates[`rooms/${currentRoomId}/scores`] = newScores;
     updates[`rooms/${currentRoomId}/roundState`] = nextState;
     updates[`rooms/${currentRoomId}/history/round_${round}`] = historyItem;
-
     update(ref(db), updates);
 }
 
 function showDuelResults(data) {
     document.getElementById('duel-play-area').classList.add('hidden');
-    const resultDiv = document.getElementById('duel-result');
-    resultDiv.classList.remove('hidden');
+    document.getElementById('duel-result').classList.remove('hidden');
 
     const myData = playerRole === 'host' ? data.host : data.guest;
     const oppData = playerRole === 'host' ? data.guest : data.host;
     const target = data.targetTemp;
     const round = data.round;
-
     const myTemp = myData ? myData.temp : 0;
     const oppTemp = oppData ? oppData.temp : 0;
-
     const myDiff = Math.abs(target - myTemp);
     const oppDiff = Math.abs(target - oppTemp);
 
     safeSetText('result-round-num', round);
     
-    // Flags ophalen op basis van opgeslagen landcode
-    const myFlag = getFlagEmoji(myData?.country);
-    const oppFlag = getFlagEmoji(oppData?.country);
-
-    safeSetText('p1-result-city', `${myData?.guess} ${myFlag}` || "...");
+    // VLAGGEN HIER WEG (zoals gevraagd in de laatste wijziging)
+    safeSetText('p1-result-city', myData?.guess || "...");
     safeSetText('p1-result-temp', `${myTemp}°C`); 
     safeSetText('p1-diff', `(Afwijking: ${myDiff})`);
 
-    safeSetText('p2-result-city', `${oppData?.guess} ${oppFlag}` || "...");
+    safeSetText('p2-result-city', oppData?.guess || "...");
     safeSetText('p2-result-temp', "???"); 
     safeSetText('p2-diff', ""); 
 
     const banner = document.getElementById('winner-banner');
     const explanation = document.getElementById('damage-explanation');
-    
     const baseDamage = Math.abs(myDiff - oppDiff);
     const totalDamage = baseDamage * round;
 
     if (myDiff < oppDiff) {
-        if(banner) {
-            banner.textContent = "🏆 JIJ WINT!";
-            banner.className = "text-3xl font-black text-green-500 mb-6 drop-shadow-sm";
-        }
+        if(banner) { banner.textContent = "🏆 JIJ WINT!"; banner.className = "text-3xl font-black text-green-500 mb-6 drop-shadow-sm"; }
         if(explanation) explanation.textContent = `Jij zat ${baseDamage}°C dichterbij! Tegenstander verliest ${totalDamage} punten.`;
     } else if (oppDiff < myDiff) {
-        if(banner) {
-            banner.textContent = "😢 VERLOREN...";
-            banner.className = "text-3xl font-black text-red-500 mb-6 drop-shadow-sm";
-        }
+        if(banner) { banner.textContent = "😢 VERLOREN..."; banner.className = "text-3xl font-black text-red-500 mb-6 drop-shadow-sm"; }
         if(explanation) explanation.textContent = `Tegenstander zat ${baseDamage}°C dichterbij! Jij verliest ${totalDamage} punten.`;
     } else {
-        if(banner) {
-            banner.textContent = "🤝 GELIJKSPEL!";
-            banner.className = "text-3xl font-black text-blue-500 mb-6 drop-shadow-sm";
-        }
+        if(banner) { banner.textContent = "🤝 GELIJKSPEL!"; banner.className = "text-3xl font-black text-blue-500 mb-6 drop-shadow-sm"; }
         if(explanation) explanation.textContent = "Even ver weg. Niemand verliest punten.";
     }
 
     const myScore = playerRole === 'host' ? data.scores.host : data.scores.guest;
     const myPct = Math.max(0, Math.min(100, myScore));
-    
     const resultHpBar = document.getElementById('result-hp-bar');
     const resultHpText = document.getElementById('result-hp-text');
-    
     if(resultHpBar) resultHpBar.style.width = `${myPct}%`;
     if(resultHpText) resultHpText.textContent = `${Math.round(myScore)} HP`;
 
     const nextBtn = document.getElementById('next-round-btn');
     const gameOverBtn = document.getElementById('game-over-btn');
-
     if (data.scores && (data.scores.host <= 0 || data.scores.guest <= 0)) {
         if(nextBtn) nextBtn.classList.add('hidden');
         if(gameOverBtn) gameOverBtn.classList.remove('hidden');
@@ -416,7 +358,6 @@ function startNextRound() {
     onValue(ref(db, `rooms/${currentRoomId}/round`), (snapshot) => {
         const currentRound = snapshot.val();
         const newTarget = Math.floor(Math.random() * 35) - 5;
-        
         update(ref(db, `rooms/${currentRoomId}`), {
             targetTemp: newTarget,
             round: currentRound + 1,
@@ -424,7 +365,6 @@ function startNextRound() {
             host: { status: 'playing', guess: null, temp: null, ready: false },
             guest: { status: 'playing', guess: null, temp: null, ready: false }
         });
-        
         duelCityData = null;
     }, { onlyOnce: true });
 }
@@ -436,7 +376,6 @@ function showGameSummary(data) {
 
     const myScore = playerRole === 'host' ? data.scores.host : data.scores.guest;
     const title = document.getElementById('summary-title');
-    
     if (myScore > 0) {
         safeSetText('summary-title', "🏆 GEWONNEN!");
         if(title) title.className = "text-4xl font-black text-center mb-6 text-green-600";
@@ -449,36 +388,23 @@ function showGameSummary(data) {
     onValue(ref(db, `rooms/${currentRoomId}/history`), (snapshot) => {
         const history = snapshot.val();
         if (!history) return;
-
         const list = document.getElementById('summary-list');
         if(list) list.innerHTML = '';
-
         const sortedHistory = Object.values(history).sort((a, b) => a.round - b.round);
-        
-        const hostScores = [100];
-        const guestScores = [100];
-        const roundLabels = ['Start'];
-        let currentHostScore = 100;
-        let currentGuestScore = 100;
+        const hostScores = [100]; const guestScores = [100]; const roundLabels = ['Start'];
+        let currentHostScore = 100; let currentGuestScore = 100;
 
         sortedHistory.forEach(item => {
             const myMove = playerRole === 'host' ? item.host : item.guest;
             const oppMove = playerRole === 'host' ? item.guest : item.host;
-
             const myFlag = getFlagEmoji(myMove.country);
             const oppFlag = getFlagEmoji(oppMove.country);
-
             const hostDiff = item.host.diff;
             const guestDiff = item.guest.diff;
             const round = item.round;
 
-            if (hostDiff < guestDiff) {
-                const dmg = (guestDiff - hostDiff) * round;
-                currentGuestScore -= dmg;
-            } else if (guestDiff < hostDiff) {
-                const dmg = (hostDiff - guestDiff) * round;
-                currentHostScore -= dmg;
-            }
+            if (hostDiff < guestDiff) currentGuestScore -= (guestDiff - hostDiff) * round;
+            else if (guestDiff < hostDiff) currentHostScore -= (hostDiff - guestDiff) * round;
 
             hostScores.push(Math.max(0, currentHostScore));
             guestScores.push(Math.max(0, currentGuestScore));
@@ -495,15 +421,13 @@ function showGameSummary(data) {
                     <div class="flex justify-between text-xs">
                         <span class="text-green-700 font-semibold">Jij: ${myMove.guess} ${myFlag} (${myMove.temp}°C)</span>
                         <span class="text-red-700">Zij: ${oppMove.guess} ${oppFlag} (${oppMove.temp}°C)</span>
-                    </div>
-                `;
+                    </div>`;
                 list.appendChild(li);
             }
         });
 
         const myScoreData = playerRole === 'host' ? hostScores : guestScores;
         const oppScoreData = playerRole === 'host' ? guestScores : hostScores;
-
         const ctx = document.getElementById('duel-chart');
         if(ctx) {
             if(myChart) myChart.destroy();
@@ -512,33 +436,12 @@ function showGameSummary(data) {
                 data: {
                     labels: roundLabels,
                     datasets: [
-                        {
-                            label: 'Mijn Score',
-                            data: myScoreData,
-                            borderColor: '#22c55e',
-                            backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                            tension: 0.1,
-                            fill: true
-                        },
-                        {
-                            label: 'Tegenstander Score',
-                            data: oppScoreData,
-                            borderColor: '#ef4444',
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                            tension: 0.1,
-                            fill: true
-                        }
+                        { label: 'Mijn Score', data: myScoreData, borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.1, fill: true },
+                        { label: 'Tegenstander Score', data: oppScoreData, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', tension: 0.1, fill: true }
                     ]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: true, suggestedMax: 100, title: { display: true, text: 'HP' } }
-                    }
-                }
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, suggestedMax: 100, title: { display: true, text: 'HP' } } } }
             });
         }
-
     }, { onlyOnce: true });
 }
