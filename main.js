@@ -2,9 +2,9 @@ import { testApiConnection } from './utils.js';
 import * as deductionGame from './games/game-deduction.js';
 import * as guessingGame from './games/game-guessing.js';
 import * as duelGame from './games/game-duel.js';
+import * as duelLandGame from './games/game-duel-land.js'; // NIEUWE IMPORT
 import * as millionaireGame from './games/game-millionaire.js';
 
-// Initialiseer de zwevende achtergrond icoontjes
 function initBackgroundEffects() {
     const icons = ['❄️', '☀️', '☁️', '⚡', '🌈', '🌧️', '🌪️'];
     const container = document.body;
@@ -14,19 +14,17 @@ function initBackgroundEffects() {
         const span = document.createElement('span');
         span.textContent = icons[Math.floor(Math.random() * icons.length)];
         span.className = 'weather-particle';
-        
         span.style.left = Math.random() * 100 + 'vw';
         span.style.animationDuration = (Math.random() * 10 + 10) + 's';
         span.style.animationDelay = (Math.random() * 10) + 's';
         span.style.fontSize = (Math.random() * 2 + 1) + 'rem';
-        
         container.appendChild(span);
     }
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("🚀 Main.js geladen!");
-    initBackgroundEffects(); // START EFFECTEN
+    initBackgroundEffects();
     await testApiConnection();
 
     // DEDUCTION
@@ -41,9 +39,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(btnGuessText) btnGuessText.addEventListener('click', () => startGame('guessing', 'text'));
     if(btnGuessMap) btnGuessMap.addEventListener('click', () => startGame('guessing', 'map'));
 
-    // DUEL
-    const btnDuel = document.getElementById('btn-duel-text');
-    if(btnDuel) btnDuel.addEventListener('click', () => startGame('duel', 'text'));
+    // DUEL (Steden & Landen)
+    const btnDuelText = document.getElementById('btn-duel-text');
+    const btnDuelLand = document.getElementById('btn-duel-land'); // De nieuwe knop
+    
+    if(btnDuelText) btnDuelText.addEventListener('click', () => startGame('duel', 'text'));
+    if(btnDuelLand) btnDuelLand.addEventListener('click', () => startGame('duel-land', 'text'));
 
     // MILJONAIR
     const btnMil = document.getElementById('btn-millionaire');
@@ -62,7 +63,7 @@ function startGame(game, mode) {
     document.getElementById('deduction-game').classList.add('hidden');
     document.getElementById('guessing-game').classList.add('hidden');
     document.getElementById('duel-game').classList.add('hidden');
-
+    
     const milGame = document.getElementById('millionaire-game');
     if(milGame) milGame.classList.add('hidden');
 
@@ -73,7 +74,10 @@ function startGame(game, mode) {
         guessingGame.init(mode);
         document.getElementById('guessing-game').classList.remove('hidden');
     } else if (game === 'duel') {
-        duelGame.init();
+        duelGame.init(); // Steden
+        document.getElementById('duel-game').classList.remove('hidden');
+    } else if (game === 'duel-land') {
+        duelLandGame.init(); // Landen
         document.getElementById('duel-game').classList.remove('hidden');
     } else if (game === 'millionaire') {
         if(milGame) {

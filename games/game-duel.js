@@ -1,36 +1,29 @@
-// AANGEPASTE IMPORTS (../)
 import { db, ref, set, onValue, update } from '../firebase.js';
-import { fetchTemperature, setupCityInput, getFlagEmoji } from '../utils.js';
+import { fetchTemperature } from '../utils.js';
+import { DEBOUNCE_DELAY } from '../config.js';
 
 let currentRoomId = null;
 let playerRole = null; 
 let duelCityData = null;
-let myUsedCities = new Set();
+let myUsedCountries = new Set(); 
 let isProcessingTurn = false;
 let myChart = null; 
 let lastKnownRound = 0;
+let debounceTimer = null;
 
-// Helper: innerHTML voor vlaggen
 function safeSetText(id, htmlContent) {
     const el = document.getElementById(id);
     if (el) el.innerHTML = htmlContent;
 }
 
-function updateUsedCitiesUI() {
-    const container = document.getElementById('used-cities-list');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    myUsedCities.forEach(cityItem => {
-        let displayHtml = cityItem;
-        if (typeof cityItem === 'object') {
-            displayHtml = `${cityItem.name} ${cityItem.flag}`;
-        }
-        const badge = document.createElement('span');
-        badge.className = 'city-badge';
-        badge.innerHTML = displayHtml; 
-        container.appendChild(badge);
-    });
+function getFlagHtml(countryCode) {
+    if (!countryCode) return '';
+    return `<span class="fi fi-${countryCode.toLowerCase()} shadow-sm rounded-[2px]" style="font-size: 1.2em; margin-left: 6px;"></span>`;
+}
+
+const regionNames = new Intl.DisplayNames(['nl'], { type: 'region' });
+function getCountryName(code) {
+    try { return regionNames.of(code); } catch (e) { return code; }
 }
 
 function generateRoomId() {
@@ -43,61 +36,165 @@ function generateRoomId() {
 }
 
 export function init() {
+    console.log("🏙️ Steden Duel Init");
+    document.getElementById('duel-lobby').classList.remove('hidden');
+    document.getElementById('duel-board').classList.add('hidden');
+    document.getElementById('duel-result').classList.add('hidden');
+    document.getElementById('duel-summary').classList.add('hidden');
+
+    const oldBtn = document.getElementById('duel-submit-btn');
+    if(oldBtn) {
+        const newBtn = oldBtn.cloneNode(true);
+        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+        newBtn.onclick = submitDuelGuess;
+        newBtn.disabled = true;
+        newBtn.classList.remove('hidden');
+        newBtn.textContent = "Kies & Wacht";
+    }
+
+    setupButton('create-room-btn', () => createRoom(generateRoomId()));
+    setupButton('join-room-btn', () => {
+        const code = document.getElementById('room-code-input').value.toUpperCase().trim();
+        if(code.length === 4) joinRoom(code);
+    });
+    setupButton('next-round-btn', setReadyForNextRound);
+
     const input = document.getElementById('duel-city-input');
-    const btn = document.getElementById('duel-submit-btn');
-    if(input) input.value = '';
-    if(btn) btn.disabled = true;
+    const suggestions = document.getElementById('duel-suggestions');
+
+    if(input) {
+        input.value = '';
+        input.placeholder = "Typ een stad (bv. Helsinki)...";
+        input.disabled = false;
+    }
+    if(suggestions) suggestions.classList.add('hidden');
     
-    myUsedCities.clear();
-    updateUsedCitiesUI();
+    myUsedCountries.clear();
+    updateUsedCountriesUI();
     lastKnownRound = 0;
-
-    const createBtn = document.getElementById('create-room-btn');
-    const joinBtn = document.getElementById('join-room-btn');
-    const codeInput = document.getElementById('room-code-input');
-
-    if(createBtn) {
-        const newCreate = createBtn.cloneNode(true);
-        createBtn.parentNode.replaceChild(newCreate, createBtn);
-        newCreate.onclick = () => {
-            const roomId = generateRoomId();
-            createRoom(roomId);
-        };
-    }
-
-    if(joinBtn && codeInput) {
-        const newJoin = joinBtn.cloneNode(true);
-        joinBtn.parentNode.replaceChild(newJoin, joinBtn);
-        newJoin.onclick = () => {
-            const roomId = codeInput.value.toUpperCase().trim();
-            if(roomId.length === 4) joinRoom(roomId);
-        };
-    }
+    duelCityData = null;
 
     setupCityInput('duel-city-input', 'duel-suggestions', 'duel-submit-btn', (city) => {
         duelCityData = city;
     });
+}
 
-    const nextBtn = document.getElementById('next-round-btn');
-    if(nextBtn) {
-        const newNextBtn = nextBtn.cloneNode(true);
-        nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
-        newNextBtn.onclick = setReadyForNextRound;
+function setupButton(id, handler) {
+    const el = document.getElementById(id);
+    if(el) {
+        const newEl = el.cloneNode(true);
+        el.parentNode.replaceChild(newEl, el);
+        newEl.onclick = handler;
     }
+}
+
+function setupCityInput(inputId, listId, btnId, onSelect) {
+    const input = document.getElementById(inputId);
+    const list = document.getElementById(listId);
+    const btn = document.getElementById(btnId);
+
+    if(!input || !list) return;
+
+    const newInput = input.cloneNode(true);
+    input.parentNode.replaceChild(newInput, input);
+
+    newInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        if(btn) btn.disabled = true;
+        onSelect(null);
+        clearTimeout(debounceTimer);
+        if(query.length < 2) {
+            list.classList.add('hidden');
+            return;
+        }
+
+        debounceTimer = setTimeout(async () => {
+            try {
+                const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${query}&count=10&language=nl&format=json`);
+                if (!res.ok) throw new Error("Fout");
+                const data = await res.json();
+                
+                if (!data.results) {
+                    list.classList.add('hidden');
+                    return;
+                }
+
+                // --- HIER IS DE FILTRATIE TOEGEVOEGD ---
+                const suggestions = data.results
+                    .filter(city => {
+                        // We willen alleen 'Populated Places' (P...), geen Landen (PCL...) of Regio's (A...)
+                        // Als feature_code PCLI is, is het een land -> verberg het
+                        if (!city.feature_code) return true; // Veiligheid
+                        return city.feature_code.startsWith('P') && !city.feature_code.startsWith('PCL');
+                    })
+                    .slice(0, 5) // Pak de top 5 NA filtratie
+                    .map(city => ({
+                        name: city.name,
+                        country: city.country_code,
+                        state: city.admin1 || '',
+                        lat: city.latitude,
+                        lon: city.longitude
+                    }));
+
+                renderCitySuggestions(suggestions, list, newInput, btn, onSelect);
+            } catch(err) {
+                console.error(err);
+                list.classList.add('hidden');
+            }
+        }, DEBOUNCE_DELAY);
+    });
+}
+
+function renderCitySuggestions(cities, list, input, btn, onSelect) {
+    list.innerHTML = '';
+    if(cities.length === 0) {
+        list.classList.add('hidden');
+        return;
+    }
+    const seen = new Set();
+    cities.forEach(city => {
+        const key = `${city.name}-${city.country}-${city.state}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+
+        const div = document.createElement('div');
+        div.className = 'p-3 hover:bg-orange-50 cursor-pointer border-b border-gray-100 flex justify-between items-center transition-colors';
+        const flagHtml = getFlagHtml(city.country);
+        const countryName = getCountryName(city.country);
+        const stateText = city.state ? `<span class="text-xs text-slate-400">(${city.state})</span>` : '';
+
+        div.innerHTML = `
+            <div class="flex items-center gap-2">
+                ${flagHtml}
+                <span class="font-bold text-slate-700">${city.name}</span>
+                ${stateText}
+            </div>
+            <span class="text-xs text-slate-400 italic">${countryName}</span>
+        `;
+        
+        div.onclick = () => {
+            input.value = `${city.name}, ${countryName}`; 
+            list.classList.add('hidden');
+            if(btn) btn.disabled = false;
+            onSelect(city);
+        };
+        list.appendChild(div);
+    });
+    list.classList.remove('hidden');
 }
 
 function createRoom(roomId) {
     currentRoomId = roomId;
     playerRole = 'host';
     const initialTarget = Math.floor(Math.random() * 35) - 5; 
-
     set(ref(db, 'rooms/' + roomId), {
         targetTemp: initialTarget,
         scores: { host: 100, guest: 100 },
         round: 1,
         roundState: 'guessing',
         host: { status: 'waiting', ready: false },
-        guest: { status: 'empty', ready: false }
+        guest: { status: 'empty', ready: false },
+        mode: 'city'
     });
     waitForGameStart();
 }
@@ -121,7 +218,11 @@ function waitForGameStart() {
         if (data.round > lastKnownRound) {
             lastKnownRound = data.round;
             const input = document.getElementById('duel-city-input');
-            if(input) input.value = '';
+            if(input) {
+                input.value = '';
+                input.placeholder = "Typ een stad...";
+                input.disabled = false;
+            }
             duelCityData = null;
             const btn = document.getElementById('duel-submit-btn');
             if(btn) {
@@ -149,37 +250,31 @@ function waitForGameStart() {
         if (data.history) {
             Object.values(data.history).forEach(item => {
                 const myMove = playerRole === 'host' ? item.host : item.guest;
-                if(myMove && myMove.guess) {
-                    let exists = false;
-                    // Check of het LAND al in de lijst staat
-                    for(let elem of myUsedCities) {
-                        if(elem.country === myMove.country) exists = true;
-                    }
-                    if(!exists) {
-                        const flagHtml = getFlagEmoji(myMove.country);
-                        // Sla nu ook de country code op in het object
-                        myUsedCities.add({ name: myMove.guess, country: myMove.country, flag: flagHtml });
+                if(myMove && myMove.country) {
+                    if(!myUsedCountries.has(myMove.country)) {
+                        myUsedCountries.add(myMove.country);
                     }
                 }
             });
-            updateUsedCitiesUI();
+            updateUsedCountriesUI();
         }
 
         if (data.roundState === 'results') {
              isProcessingTurn = false;
              if (data.host?.temp !== undefined && data.guest?.temp !== undefined) {
                  showDuelResults(data);
+                 
                  const myData = playerRole === 'host' ? data.host : data.guest;
                  const btn = document.getElementById('next-round-btn');
                  if (btn) {
                      if (myData && myData.ready) {
                          btn.textContent = "⏳ Wachten op ander...";
                          btn.disabled = true;
-                         btn.classList.add('opacity-50', 'cursor-not-allowed');
+                         btn.classList.add('opacity-50');
                      } else {
                          btn.textContent = "Volgende Ronde ➡️";
                          btn.disabled = false;
-                         btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                         btn.classList.remove('opacity-50');
                      }
                  }
                  if (playerRole === 'host' && data.host?.ready && data.guest?.ready) {
@@ -192,24 +287,16 @@ function waitForGameStart() {
              isProcessingTurn = false;
              document.getElementById('duel-result').classList.add('hidden');
              document.getElementById('duel-play-area').classList.remove('hidden');
-             const submitBtn = document.getElementById('duel-submit-btn');
-             if(submitBtn) submitBtn.textContent = "Kies & Wacht";
-             const nextBtn = document.getElementById('next-round-btn');
-             if(nextBtn) {
-                 nextBtn.disabled = false;
-                 nextBtn.textContent = "Volgende Ronde ➡️";
-                 nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-             }
+             
              const myData = playerRole === 'host' ? data.host : data.guest;
              const input = document.getElementById('duel-city-input');
+             const submitBtn = document.getElementById('duel-submit-btn');
+
              if (myData && myData.temp !== undefined) {
                  if(submitBtn) submitBtn.classList.add('hidden');
                  document.getElementById('duel-waiting-msg').classList.remove('hidden');
+                 safeSetText('duel-waiting-msg', "⏳ Wachten op tegenstander...");
                  if(input) input.disabled = true;
-             } else {
-                 if(input) input.disabled = false;
-                 document.getElementById('duel-waiting-msg').classList.add('hidden');
-                 if(submitBtn) submitBtn.classList.remove('hidden');
              }
         }
 
@@ -220,16 +307,6 @@ function waitForGameStart() {
             }
         }
     });
-
-    const oldBtn = document.getElementById('duel-submit-btn');
-    if(oldBtn) {
-        const newBtn = oldBtn.cloneNode(true);
-        oldBtn.parentNode.replaceChild(newBtn, oldBtn);
-        setupCityInput('duel-city-input', 'duel-suggestions', 'duel-submit-btn', (city) => {
-            duelCityData = city;
-        });
-        newBtn.onclick = submitDuelGuess;
-    }
 }
 
 function setReadyForNextRound() {
@@ -239,14 +316,7 @@ function setReadyForNextRound() {
 async function submitDuelGuess() {
     if (!duelCityData) return;
 
-    let countryUsed = false;
-    // Loop door de lijst en check of het land al bestaat
-    for(let elem of myUsedCities) {
-        if(elem.country === duelCityData.country) countryUsed = true;
-    }
-
-    // Als land al gebruikt is, geef melding en stop
-    if (countryUsed) {
+    if (myUsedCountries.has(duelCityData.country)) {
         alert(`⚠️ Je hebt al een stad uit ${duelCityData.country} gekozen! Kies een ander land.`);
         return;
     }
@@ -261,11 +331,8 @@ async function submitDuelGuess() {
     const temp = await fetchTemperature(duelCityData, null);
 
     if (temp !== null) {
-        const flagHtml = getFlagEmoji(duelCityData.country);
-        // Voeg toe aan de lijst MET country code
-        myUsedCities.add({ name: duelCityData.name, country: duelCityData.country, flag: flagHtml });
-        updateUsedCitiesUI();
-        
+        myUsedCountries.add(duelCityData.country);
+        updateUsedCountriesUI();
         update(ref(db, `rooms/${currentRoomId}/${playerRole}`), {
             guess: duelCityData.name,
             country: duelCityData.country,
@@ -317,21 +384,15 @@ function showDuelResults(data) {
 
     safeSetText('result-round-num', round);
     
-    // --- JOUW DATA (Alles zichtbaar) ---
-    safeSetText('p1-result-city', myData?.guess || "...");
+    // JIJ: Alles zichtbaar
+    safeSetText('p1-result-city', `${myData?.guess} ${getFlagHtml(myData?.country)}`);
     safeSetText('p1-result-temp', `${myTemp}°C`); 
     safeSetText('p1-diff', `(Afwijking: ${myDiff})`);
 
-    // --- TEGENSTANDER DATA (Naam geheim, Temp zichtbaar) ---
-    
-    // 1. Verberg de NAAM (zodat ze niet weten welke stad deze temp heeft)
+    // TEGENSTANDER: Geheim
     safeSetText('p2-result-city', "🕵️ ???"); 
-
-    // 2. Toon WEL de TEMPERATUUR (zodat je ziet wat er gebeurd is)
     safeSetText('p2-result-temp', `${oppTemp}°C`); 
-    
-    // 3. Toon eventueel ook de afwijking weer (optioneel, maar wel eerlijk)
-    safeSetText('p2-diff', `(Afwijking: ${oppDiff})`);
+    safeSetText('p2-diff', `(Afwijking: ${oppDiff})`); 
 
     const banner = document.getElementById('winner-banner');
     const explanation = document.getElementById('damage-explanation');
@@ -382,6 +443,22 @@ function startNextRound() {
     }, { onlyOnce: true });
 }
 
+function updateUsedCountriesUI() {
+    const container = document.getElementById('used-cities-list');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    myUsedCountries.forEach(code => {
+        const badge = document.createElement('div');
+        badge.className = 'px-3 py-1 bg-slate-200 rounded-full border border-slate-300 flex items-center gap-2 shadow-sm';
+        badge.innerHTML = `
+            <span class="text-xs font-bold text-slate-500 line-through decoration-red-500 decoration-2">${code}</span>
+            ${getFlagHtml(code)}
+        `;
+        container.appendChild(badge);
+    });
+}
+
 function showGameSummary(data) {
     document.getElementById('duel-play-area').classList.add('hidden');
     document.getElementById('duel-result').classList.add('hidden');
@@ -391,11 +468,11 @@ function showGameSummary(data) {
     const title = document.getElementById('summary-title');
     if (myScore > 0) {
         safeSetText('summary-title', "🏆 GEWONNEN!");
-        if(title) title.className = "text-4xl font-black text-center mb-6 text-green-600";
+        if(title) title.className = "text-3xl font-black text-center mb-4 text-green-600";
         if(typeof confetti === "function") confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
     } else {
         safeSetText('summary-title', "💀 GAME OVER");
-        if(title) title.className = "text-4xl font-black text-center mb-6 text-red-600";
+        if(title) title.className = "text-3xl font-black text-center mb-4 text-red-600";
     }
 
     onValue(ref(db, `rooms/${currentRoomId}/history`), (snapshot) => {
@@ -403,15 +480,24 @@ function showGameSummary(data) {
         if (!history) return;
         const list = document.getElementById('summary-list');
         if(list) list.innerHTML = '';
+        
         const sortedHistory = Object.values(history).sort((a, b) => a.round - b.round);
         const hostScores = [100]; const guestScores = [100]; const roundLabels = ['Start'];
         let currentHostScore = 100; let currentGuestScore = 100;
 
+        const chartCanvas = document.getElementById('duel-chart');
+        if(chartCanvas) {
+             chartCanvas.parentElement.className = "mb-2 w-full h-40 bg-slate-50 rounded-xl p-2 border border-slate-100 relative";
+        }
+        
+        const listParent = document.querySelector('#duel-summary .max-h-60');
+        if(listParent) {
+            listParent.className = "bg-slate-50 rounded-2xl p-4 border border-slate-200 mb-4 text-left h-48 overflow-y-auto shadow-inner";
+        }
+
         sortedHistory.forEach(item => {
             const myMove = playerRole === 'host' ? item.host : item.guest;
             const oppMove = playerRole === 'host' ? item.guest : item.host;
-            const myFlag = getFlagEmoji(myMove.country);
-            const oppFlag = getFlagEmoji(oppMove.country);
             const hostDiff = item.host.diff;
             const guestDiff = item.guest.diff;
             const round = item.round;
@@ -421,40 +507,61 @@ function showGameSummary(data) {
 
             hostScores.push(Math.max(0, currentHostScore));
             guestScores.push(Math.max(0, currentGuestScore));
-            roundLabels.push(`Ronde ${round}`);
+            roundLabels.push(`R ${round}`);
 
             if(list) {
                 const li = document.createElement('li');
-                li.className = "bg-gray-100 p-2 rounded border border-gray-200";
+                li.className = "bg-white p-2 rounded-xl border border-gray-200 shadow-sm mb-2";
                 li.innerHTML = `
-                    <div class="flex justify-between font-bold text-gray-700 border-b border-gray-300 pb-1 mb-1">
-                        <span>Ronde ${item.round}</span>
-                        <span class="text-blue-600">Doel: ${item.target}°C</span>
+                    <div class="flex justify-between items-center font-bold text-slate-700 border-b border-slate-100 pb-1 mb-1">
+                        <span class="bg-slate-200 text-slate-600 text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">Ronde ${item.round}</span>
+                        <span class="text-blue-600 text-xs">Doel: ${item.target}°C</span>
                     </div>
-                    <div class="flex justify-between text-xs">
-                        <span class="text-green-700 font-semibold">Jij: ${myMove.guess} ${myFlag} (${myMove.temp}°C)</span>
-                        <span class="text-red-700">Zij: ${oppMove.guess} ${oppFlag} (${oppMove.temp}°C)</span>
+                    <div class="space-y-1">
+                        <div class="flex justify-between items-center text-xs">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-green-600 w-6">JIJ</span>
+                                ${getFlagHtml(myMove.country)}
+                                <span class="text-slate-700">${myMove.guess}</span>
+                            </div>
+                            <span class="font-mono font-bold text-slate-800">${myMove.temp}°C</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-red-600 w-6">ZIJ</span>
+                                ${getFlagHtml(oppMove.country)}
+                                <span class="text-slate-700">${oppMove.guess}</span>
+                            </div>
+                            <span class="font-mono font-bold text-slate-800">${oppMove.temp}°C</span>
+                        </div>
                     </div>`;
                 list.appendChild(li);
             }
         });
 
-        const myScoreData = playerRole === 'host' ? hostScores : guestScores;
-        const oppScoreData = playerRole === 'host' ? guestScores : hostScores;
-        const ctx = document.getElementById('duel-chart');
-        if(ctx) {
+        setTimeout(() => {
             if(myChart) myChart.destroy();
-            myChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: roundLabels,
-                    datasets: [
-                        { label: 'Mijn Score', data: myScoreData, borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.1, fill: true },
-                        { label: 'Tegenstander Score', data: oppScoreData, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', tension: 0.1, fill: true }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, suggestedMax: 100, title: { display: true, text: 'HP' } } } }
-            });
-        }
+            if(chartCanvas) {
+                myChart = new Chart(chartCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: roundLabels,
+                        datasets: [
+                            { label: 'Jij', data: hostScores, borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', borderWidth: 3, tension: 0.3, fill: true, pointRadius: 3 },
+                            { label: 'Tegenstander', data: guestScores, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 3, tension: 0.3, fill: true, pointRadius: 3 }
+                        ]
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { legend: { display: false } },
+                        scales: { 
+                            y: { beginAtZero: true, suggestedMax: 100, grid: { display: false } },
+                            x: { grid: { display: false } }
+                        } 
+                    }
+                });
+            }
+        }, 100);
     }, { onlyOnce: true });
 }

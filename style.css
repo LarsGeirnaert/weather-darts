@@ -4,16 +4,15 @@
 body {
     font-family: 'Outfit', sans-serif;
     margin: 0;
-    min-height: 100vh;
+    height: 100vh;
+    max-height: 100vh; /* Voorkom scrollbar op de body */
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 1rem;
     color: #1e293b;
     position: relative;
-    overflow: hidden; /* Belangrijk voor zwevende deeltjes */
-
-    /* Diepe, levendige gradient */
+    overflow: hidden; 
     background: linear-gradient(-45deg, #0f172a, #1e3a8a, #0d9488, #4f46e5);
     background-size: 400% 400%;
     animation: gradientBG 15s ease infinite;
@@ -25,7 +24,7 @@ body {
     100% { background-position: 0% 50%; }
 }
 
-/* --- ZWEVENDE ACHTERGROND DEELTJES --- */
+/* --- DEELTJES --- */
 .weather-particle {
     position: absolute;
     bottom: -10vh;
@@ -44,7 +43,7 @@ body {
     100% { transform: translateY(-120vh) rotate(360deg) scale(1.2); opacity: 0; }
 }
 
-/* --- GLASSMORPHISM CARDS --- */
+/* --- CONTAINER CARD (Basis) --- */
 .container-card {
     background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(12px);
@@ -52,18 +51,19 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.6);
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
     border-radius: 24px;
-    max-width: 900px;
+    max-width: 1000px;
     width: 100%;
+    max-height: 98vh; /* Nooit hoger dan scherm */
+    display: flex;
+    flex-direction: column;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     position: relative;
-    z-index: 10; /* Boven de deeltjes */
+    z-index: 10;
+    overflow: hidden; 
 }
 
-/* --- ANIMATIES & EFFECTEN --- */
-.shake {
-    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-}
-
+/* --- ANIMATIES --- */
+.shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
 @keyframes shake {
     10%, 90% { transform: translate3d(-2px, 0, 0); }
     20%, 80% { transform: translate3d(4px, 0, 0); }
@@ -72,16 +72,9 @@ body {
 }
 
 .floating-text {
-    position: absolute;
-    font-weight: 900;
-    font-size: 1.5rem;
-    pointer-events: none;
-    animation: floatText 1.5s ease-out forwards;
-    z-index: 50;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    white-space: nowrap;
+    position: absolute; font-weight: 900; font-size: 1.5rem; pointer-events: none;
+    animation: floatText 1.5s ease-out forwards; z-index: 50; text-shadow: 0 2px 4px rgba(0,0,0,0.3); white-space: nowrap;
 }
-
 .text-damage { color: #ef4444; }
 .text-heal { color: #22c55e; }
 
@@ -91,103 +84,57 @@ body {
     100% { opacity: 0; transform: translateY(-60px) scale(1); }
 }
 
-/* --- TYPOGRAFIE & LAYOUT --- */
+/* --- TYPOGRAFIE --- */
 h1, h2, h3 { letter-spacing: -0.02em; }
 .hidden { display: none !important; }
-
-/* --- KNOPPEN --- */
 button { cursor: pointer; user-select: none; }
 
+/* --- MENU KNOPPEN --- */
 .menu-button {
-    position: relative;
-    padding: 1.25rem 1.5rem;
-    border-radius: 16px;
-    font-weight: 700;
-    font-size: 1rem;
-    color: white;
-    border: none;
-    overflow: hidden;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    background-size: 200% auto;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    position: relative; padding: 1.25rem 1.5rem; border-radius: 16px; font-weight: 700; font-size: 1rem;
+    color: white; border: none; overflow: hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background-size: 200% auto; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
 #btn-deduction-text, #btn-deduction-map { background-image: linear-gradient(to right, #0d9488 0%, #115e59 51%, #0d9488 100%); }
 #btn-guessing-text, #btn-guessing-map { background-image: linear-gradient(to right, #7c3aed 0%, #5b21b6 51%, #7c3aed 100%); }
 #btn-duel-text { background-image: linear-gradient(to right, #f97316 0%, #ea580c 51%, #f97316 100%); }
+#btn-duel-land { background-image: linear-gradient(to right, #10b981 0%, #059669 51%, #10b981 100%); margin-top: 0.5rem; }
 
-.menu-button:hover {
-    background-position: right center;
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-}
+.menu-button:hover { background-position: right center; transform: translateY(-3px) scale(1.02); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
 .menu-button:active { transform: translateY(1px) scale(0.98); }
 
-/* Algemene actie knoppen */
+/* ACTIE KNOPPEN */
 #duel-submit-btn, #deduction-submit-button, #guessing-submit-button, #create-room-btn, #join-room-btn, #next-round-btn, #btn-millionaire {
     background-image: linear-gradient(to right, #2563eb 0%, #1d4ed8 51%, #2563eb 100%);
-    color: white;
-    transition: 0.3s;
-    background-size: 200% auto;
-    border-radius: 12px;
-    font-weight: 800;
+    color: white; transition: 0.3s; background-size: 200% auto; border-radius: 12px; font-weight: 800;
     box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
 }
-
-#btn-millionaire {
-    background-image: linear-gradient(to right, #eab308 0%, #ca8a04 51%, #eab308 100%);
-    box-shadow: 0 4px 15px rgba(234, 179, 8, 0.3);
-}
+#btn-millionaire { background-image: linear-gradient(to right, #eab308 0%, #ca8a04 51%, #eab308 100%); box-shadow: 0 4px 15px rgba(234, 179, 8, 0.3); }
 
 #duel-submit-btn:hover:not(:disabled), #create-room-btn:hover, #join-room-btn:hover, #btn-millionaire:hover {
-    background-position: right center;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
+    background-position: right center; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4);
 }
-
-button:disabled {
-    background: #94a3b8 !important;
-    cursor: not-allowed;
-    transform: none !important;
-    box-shadow: none !important;
-}
+button:disabled { background: #94a3b8 !important; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
 
 /* --- INPUTS --- */
 input[type="text"] {
-    background: rgba(255, 255, 255, 0.9);
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    transition: all 0.3s ease;
-    font-weight: 500;
-    font-size: 1.1rem;
+    background: rgba(255, 255, 255, 0.9); border: 2px solid #e2e8f0; border-radius: 12px;
+    transition: all 0.3s ease; font-weight: 500; font-size: 1.1rem;
 }
-input[type="text"]:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-    outline: none;
-    transform: translateY(-1px);
-}
+input[type="text"]:focus { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); outline: none; transform: translateY(-1px); }
 
-/* --- SUGGESTIES DROPDOWN --- */
 #deduction-suggestions, #guessing-suggestions, #duel-suggestions {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    border: 1px solid #f1f5f9;
-    overflow: hidden;
-    margin-top: 4px;
-    animation: fadeIn 0.2s ease-out;
+    background: white; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #f1f5f9; overflow: hidden; margin-top: 4px; animation: fadeIn 0.2s ease-out;
 }
 .suggestion-item { padding: 12px 16px; cursor: pointer; transition: background 0.1s; font-weight: 500; color: #475569; }
 .suggestion-item:hover { background-color: #eff6ff; color: #1d4ed8; }
 
-/* --- SCORE PANELS --- */
+/* --- GAME UI ELEMENTS --- */
 .score-panel {
-    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
-    border-radius: 16px;
-    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
-    position: relative;
-    overflow: hidden;
+    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%); border-radius: 16px;
+    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3); position: relative; overflow: hidden;
 }
 .score-panel::before {
     content: ''; position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
@@ -196,22 +143,14 @@ input[type="text"]:focus {
 }
 @keyframes shine { 0%, 80% { left: -100%; } 100% { left: 200%; } }
 
-/* --- MAPS --- */
-#deduction-map-container, #guessing-map-container {
-    border-radius: 16px; overflow: hidden;
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-    border: 4px solid white;
-}
+#deduction-map-container, #guessing-map-container { border-radius: 16px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); border: 4px solid white; }
 
 /* --- DUEL HP BARS --- */
 .hp-track {
     background-color: #cbd5e1; height: 16px; border-radius: 99px; overflow: hidden;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.15); border: 1px solid white; position: relative;
 }
-.hp-fill {
-    height: 100%; border-radius: 99px; transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-    position: relative; overflow: hidden;
-}
+.hp-fill { height: 100%; border-radius: 99px; transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); position: relative; overflow: hidden; }
 .hp-fill::after {
     content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
     background-image: linear-gradient(45deg,rgba(255,255,255,.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.15) 50%,rgba(255,255,255,.15) 75%,transparent 75%,transparent);
@@ -222,31 +161,19 @@ input[type="text"]:focus {
 .hp-red { background: linear-gradient(to bottom, #f87171, #dc2626); box-shadow: 0 0 10px #ef4444; }
 .hp-fill-right { margin-left: auto; }
 
-/* Result Bar */
 .result-hp-wrapper {
     background-color: #0f172a; height: 36px; border-radius: 8px; padding: 4px;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); position: relative; margin-bottom: 2rem; border: 2px solid #334155;
 }
-.result-hp-fill {
-    background: linear-gradient(90deg, #4ade80, #22c55e); height: 100%; width: 100%;
-    border-radius: 4px; transition: width 1s ease-out; box-shadow: 0 0 15px #4ade80;
-}
-.result-hp-text {
-    position: absolute; width: 100%; text-align: center; top: 50%; transform: translateY(-50%);
-    color: white; font-weight: 900; text-shadow: 0 2px 2px rgba(0,0,0,0.8); z-index: 10; letter-spacing: 1px;
-}
+.result-hp-fill { background: linear-gradient(90deg, #4ade80, #22c55e); height: 100%; width: 100%; border-radius: 4px; transition: width 1s ease-out; box-shadow: 0 0 15px #4ade80; }
+.result-hp-text { position: absolute; width: 100%; text-align: center; top: 50%; transform: translateY(-50%); color: white; font-weight: 900; text-shadow: 0 2px 2px rgba(0,0,0,0.8); z-index: 10; letter-spacing: 1px; }
 
 /* --- MILLIONAIRE --- */
 .mil-option {
-    background: linear-gradient(to bottom, #1e293b, #0f172a);
-    border: 2px solid #475569; border-radius: 12px; padding: 1.5rem; text-align: left;
-    color: white; font-size: 1.1rem; font-weight: 700; position: relative; transition: all 0.2s;
-    box-shadow: 0 6px 10px rgba(0,0,0,0.3); display: flex; align-items: center; width: 100%;
+    background: linear-gradient(to bottom, #1e293b, #0f172a); border: 2px solid #475569; border-radius: 12px; padding: 1.5rem; text-align: left;
+    color: white; font-size: 1.1rem; font-weight: 700; position: relative; transition: all 0.2s; box-shadow: 0 6px 10px rgba(0,0,0,0.3); display: flex; align-items: center; width: 100%;
 }
-.mil-option:hover:not(:disabled) {
-    background: linear-gradient(to bottom, #334155, #1e293b); border-color: #fbbf24;
-    transform: translateY(-2px); box-shadow: 0 10px 15px rgba(0,0,0,0.4);
-}
+.mil-option:hover:not(:disabled) { background: linear-gradient(to bottom, #334155, #1e293b); border-color: #fbbf24; transform: translateY(-2px); box-shadow: 0 10px 15px rgba(0,0,0,0.4); }
 .opt-letter { color: #fbbf24; margin-right: 1rem; font-weight: 900; font-size: 1.3rem; }
 .mil-selected { background: #f59e0b !important; border-color: #fcd34d !important; color: black; }
 .mil-selected .opt-letter { color: black; }
@@ -269,3 +196,58 @@ input[type="text"]:focus {
 
 @keyframes bounceIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ==========================================================================
+   MAGIC SCALING: VERSCHILLENDE GROOTTES PER SCHERM
+   ========================================================================== */
+@media (min-width: 1024px) {
+    
+    /* Standaard container */
+    .container-card {
+        zoom: 1; 
+        max-height: 98vh;
+        overflow-y: auto; 
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
+    }
+
+    /* 1. MAIN MENU: 110% (Iets kleiner dan eerst) */
+    #main-menu {
+        zoom: 1.1; 
+        width: 100%;
+    }
+
+    /* 2. GAME 1 & 2 (Aftrekken & Raden): KLEINER (75%) - ZOALS GEVRAAGD */
+    #deduction-game,
+    #guessing-game {
+        zoom: 0.75;
+    }
+
+    /* 3. DUEL & MILJONAIR: 105% */
+    #duel-play-area,
+    #duel-result,
+    #mil-game-area {
+        zoom: 1.05;
+    }
+
+    /* 4. EINDSCHERM: COMPACT (85%) */
+    #duel-summary,
+    #deduction-end-screen,
+    #guessing-end-screen,
+    #mil-end-screen {
+        zoom: 0.85;
+        display: flex;
+        flex-direction: column;
+        padding: 1rem !important;
+        max-height: 90vh;
+    }
+
+    /* SPECIFIEKE FIXES VOOR DE COMPACTE MODUS */
+    #duel-play-area input { padding: 0.8rem 1.2rem !important; font-size: 1.3rem !important; }
+    #duel-submit-btn, #duel-city-input { margin-top: 0.75rem !important; }
+    #duel-suggestions { max-height: 250px; overflow-y: auto; }
+
+    #summary-title { font-size: 2.5rem !important; margin-bottom: 0.5rem !important; }
+    #duel-chart { max-height: 180px !important; }
+    #duel-summary .max-h-60 { max-height: 200px !important; }
+}

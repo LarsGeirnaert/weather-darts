@@ -17,6 +17,7 @@
         <h1 class="text-6xl font-black text-slate-800 mb-2 tracking-tighter drop-shadow-sm">Weer Games</h1>
         <p class="text-xl text-slate-500 mb-10 font-medium">Kies je uitdaging en speelwijze</p>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            
             <div class="space-y-4 p-6 bg-teal-50/50 rounded-2xl border border-teal-100 hover:bg-teal-50 transition duration-300">
                 <div class="text-4xl mb-2">📉</div>
                 <h2 class="text-xl font-bold text-teal-800">Aftrekken</h2>
@@ -25,6 +26,7 @@
                     <button id="btn-deduction-map" class="menu-button text-sm opacity-90">🗺️ Kaart</button>
                 </div>
             </div>
+
             <div class="space-y-4 p-6 bg-purple-50/50 rounded-2xl border border-purple-100 hover:bg-purple-50 transition duration-300">
                 <div class="text-4xl mb-2">🔍</div>
                 <h2 class="text-xl font-bold text-purple-800">Raden</h2>
@@ -33,12 +35,17 @@
                     <button id="btn-guessing-map" class="menu-button text-sm opacity-90">🗺️ Kaart</button>
                 </div>
             </div>
+
             <div class="space-y-4 p-6 bg-orange-50/50 rounded-2xl border border-orange-100 hover:bg-orange-50 transition duration-300 relative overflow-hidden">
                 <div class="absolute top-0 right-0 p-1 bg-orange-200 text-[10px] font-bold text-orange-800 rounded-bl-lg">POPULAIR</div>
                 <div class="text-4xl mb-2">⚔️</div>
                 <h2 class="text-xl font-bold text-orange-800">Duel</h2>
-                <button id="btn-duel-text" class="menu-button w-full text-sm">Start Duel</button>
+                <div class="flex flex-col gap-2">
+                    <button id="btn-duel-text" class="menu-button text-sm">🏙️ Steden</button>
+                    <button id="btn-duel-land" class="menu-button text-sm" style="background-image: linear-gradient(to right, #10b981 0%, #059669 51%, #10b981 100%); margin-top: 4px;">🌍 Landen</button>
+                </div>
             </div>
+
             <div class="space-y-4 p-6 bg-yellow-50/50 rounded-2xl border border-yellow-100 hover:bg-yellow-50 transition duration-300">
                 <div class="text-4xl mb-2">💎</div>
                 <h2 class="text-xl font-bold text-yellow-800">Miljonair</h2>
@@ -47,10 +54,12 @@
         </div>
         <div id="status-message" class="mt-8 font-semibold text-slate-400 text-sm animate-pulse">Verbinding maken...</div>
     </div>
+
     <div id="game-container" class="container-card p-6 md:p-8 hidden relative">
         <button id="back-to-menu" class="absolute top-6 left-6 text-slate-400 hover:text-slate-700 font-bold flex items-center transition-colors z-50">
             <span class="text-xl mr-1">❮</span> Menu
         </button>
+
         <div id="deduction-game" class="hidden pt-8">
              <h1 class="text-4xl font-black text-center text-slate-800 mb-8">Temperatuur Aftrekken</h1>
              <div id="deduction-game-board" class="space-y-6 hidden">
@@ -82,6 +91,7 @@
                 <button onclick="location.reload()" class="menu-button bg-slate-800 text-white w-full md:w-auto px-8">Opnieuw Spelen 🔄</button>
             </div>
         </div>
+
         <div id="guessing-game" class="hidden pt-8">
              <h1 class="text-4xl font-black text-center text-slate-800 mb-8">Raad de Temperatuur</h1>
              <div id="guessing-game-board" class="space-y-6 hidden">
@@ -117,6 +127,7 @@
                 <button onclick="location.reload()" class="menu-button bg-slate-800 text-white px-8">Opnieuw Spelen 🔄</button>
             </div>
         </div>
+
         <div id="duel-game" class="hidden pt-4">
             <h1 class="text-3xl font-black text-center text-slate-800 mb-6">Online Duel ⚔️</h1>
             <div id="duel-lobby" class="text-center space-y-8 py-8">
@@ -138,7 +149,7 @@
                 <div id="duel-play-area" class="transition-all duration-300">
                     <div class="p-6 bg-orange-50/90 rounded-2xl border-2 border-orange-200 text-center relative shadow-sm mb-6">
                         <p class="text-xs font-bold text-orange-600 uppercase tracking-widest mb-2">🎯 Het Doel</p>
-                        <p class="text-sm text-orange-800">Zoek een stad zo dicht mogelijk bij:</p>
+                        <p class="text-sm text-orange-800">Zoek iets zo dicht mogelijk bij:</p>
                         <p id="duel-target-display" class="text-6xl font-black text-slate-800 mt-2 drop-shadow-sm">--°C</p>
                         <div class="absolute top-3 right-3 bg-white/80 px-2 py-1 rounded text-[10px] font-bold shadow text-slate-400 uppercase tracking-wider">Kamer: <span id="room-code-display" class="text-blue-600">...</span></div>
                     </div>
@@ -174,6 +185,7 @@
                 </div>
             </div>
         </div>
+
         <div id="millionaire-game" class="hidden pt-4">
             <div class="text-center mb-6">
                 <h1 class="text-4xl font-black text-slate-800 tracking-tight">De Weer Miljonair 💎</h1>
@@ -214,6 +226,6 @@
             </div>
         </div>
     </div>
-    <script type="module" src="main.js?v=2"></script>
+    <script type="module" src="main.js?v=4"></script>
 </body>
 </html>
