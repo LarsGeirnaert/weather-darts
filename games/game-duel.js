@@ -151,12 +151,14 @@ function waitForGameStart() {
                 const myMove = playerRole === 'host' ? item.host : item.guest;
                 if(myMove && myMove.guess) {
                     let exists = false;
+                    // Check of het LAND al in de lijst staat
                     for(let elem of myUsedCities) {
-                        if(elem.name === myMove.guess) exists = true;
+                        if(elem.country === myMove.country) exists = true;
                     }
                     if(!exists) {
                         const flagHtml = getFlagEmoji(myMove.country);
-                        myUsedCities.add({ name: myMove.guess, flag: flagHtml });
+                        // Sla nu ook de country code op in het object
+                        myUsedCities.add({ name: myMove.guess, country: myMove.country, flag: flagHtml });
                     }
                 }
             });
@@ -237,13 +239,15 @@ function setReadyForNextRound() {
 async function submitDuelGuess() {
     if (!duelCityData) return;
 
-    let alreadyUsed = false;
+    let countryUsed = false;
+    // Loop door de lijst en check of het land al bestaat
     for(let elem of myUsedCities) {
-        if(elem.name === duelCityData.name) alreadyUsed = true;
+        if(elem.country === duelCityData.country) countryUsed = true;
     }
 
-    if (alreadyUsed) {
-        alert(`⚠️ Je hebt ${duelCityData.name} al gebruikt deze game! Kies een andere stad.`);
+    // Als land al gebruikt is, geef melding en stop
+    if (countryUsed) {
+        alert(`⚠️ Je hebt al een stad uit ${duelCityData.country} gekozen! Kies een ander land.`);
         return;
     }
     
@@ -258,8 +262,10 @@ async function submitDuelGuess() {
 
     if (temp !== null) {
         const flagHtml = getFlagEmoji(duelCityData.country);
-        myUsedCities.add({ name: duelCityData.name, flag: flagHtml });
+        // Voeg toe aan de lijst MET country code
+        myUsedCities.add({ name: duelCityData.name, country: duelCityData.country, flag: flagHtml });
         updateUsedCitiesUI();
+        
         update(ref(db, `rooms/${currentRoomId}/${playerRole}`), {
             guess: duelCityData.name,
             country: duelCityData.country,
@@ -311,14 +317,21 @@ function showDuelResults(data) {
 
     safeSetText('result-round-num', round);
     
-    // VLAGGEN HIER WEG (zoals gevraagd in de laatste wijziging)
+    // --- JOUW DATA (Alles zichtbaar) ---
     safeSetText('p1-result-city', myData?.guess || "...");
     safeSetText('p1-result-temp', `${myTemp}°C`); 
     safeSetText('p1-diff', `(Afwijking: ${myDiff})`);
 
-    safeSetText('p2-result-city', oppData?.guess || "...");
-    safeSetText('p2-result-temp', "???"); 
-    safeSetText('p2-diff', ""); 
+    // --- TEGENSTANDER DATA (Naam geheim, Temp zichtbaar) ---
+    
+    // 1. Verberg de NAAM (zodat ze niet weten welke stad deze temp heeft)
+    safeSetText('p2-result-city', "🕵️ ???"); 
+
+    // 2. Toon WEL de TEMPERATUUR (zodat je ziet wat er gebeurd is)
+    safeSetText('p2-result-temp', `${oppTemp}°C`); 
+    
+    // 3. Toon eventueel ook de afwijking weer (optioneel, maar wel eerlijk)
+    safeSetText('p2-diff', `(Afwijking: ${oppDiff})`);
 
     const banner = document.getElementById('winner-banner');
     const explanation = document.getElementById('damage-explanation');
