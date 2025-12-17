@@ -4,20 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lars' Weer Games</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@6.11.0/css/flag-icons.min.css"/>
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    
     <div id="main-menu" class="container-card p-8 md:p-12 text-center animate-[fadeIn_0.5s_ease-out]">
         <h1 class="text-6xl font-black text-slate-800 mb-2 tracking-tighter drop-shadow-sm">Weer Games</h1>
         <p class="text-xl text-slate-500 mb-10 font-medium">Kies je uitdaging en speelwijze</p>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
             <div class="space-y-4 p-6 bg-teal-50/50 rounded-2xl border border-teal-100 hover:bg-teal-50 transition duration-300">
                 <div class="text-4xl mb-2">📉</div>
                 <h2 class="text-xl font-bold text-teal-800">Aftrekken</h2>
@@ -46,6 +50,21 @@
                 </div>
             </div>
 
+            <div class="space-y-4 p-6 bg-pink-50/50 rounded-2xl border border-pink-100 hover:bg-pink-50 transition duration-300">
+                <div class="text-4xl mb-2">🛤️</div>
+                <h2 class="text-xl font-bold text-pink-800">Weer Pad</h2>
+                <div class="flex flex-col gap-2">
+                    <button id="btn-path-solo" class="menu-button text-sm bg-gradient-to-r from-pink-500 to-rose-600 shadow-pink-500/50">👤 Solo</button>
+                    <button id="btn-path-online" class="menu-button text-sm bg-gradient-to-r from-violet-500 to-fuchsia-600 shadow-violet-500/50">⚔️ Online (Bo5)</button>
+                </div>
+            </div>
+
+            <div class="space-y-4 p-6 bg-cyan-50/50 rounded-2xl border border-cyan-100 hover:bg-cyan-50 transition duration-300">
+                <div class="text-4xl mb-2">⬆️⬇️</div>
+                <h2 class="text-xl font-bold text-cyan-800">Hoger / Lager</h2>
+                <button id="btn-higherlower" class="menu-button w-full text-sm bg-gradient-to-r from-cyan-500 to-blue-600 shadow-cyan-500/50">Start Quiz</button>
+            </div>
+
             <div class="space-y-4 p-6 bg-yellow-50/50 rounded-2xl border border-yellow-100 hover:bg-yellow-50 transition duration-300">
                 <div class="text-4xl mb-2">💎</div>
                 <h2 class="text-xl font-bold text-yellow-800">Miljonair</h2>
@@ -67,11 +86,20 @@
                     <p class="text-lg font-bold text-yellow-800">🎯 DOEL: Ga naar 0°C</p>
                     <p id="deduction-mode-display" class="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1">Modus: ??</p>
                 </div>
-                <div class="score-panel flex justify-between items-center p-8 text-white">
-                    <div><p class="text-sm font-medium opacity-80 uppercase tracking-wide">Doel</p><p id="deduction-target-display" class="text-6xl font-black mt-1 tracking-tight drop-shadow-md">--</p></div>
-                    <div class="text-right"><p class="text-sm font-medium opacity-80 uppercase tracking-wide">Beurten</p><p id="deduction-turns-display" class="text-5xl font-black mt-1 tracking-tight">5</p></div>
+                
+                <div class="score-panel flex justify-between items-center p-8 bg-white border border-slate-200 shadow-sm rounded-xl mt-4">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Doel</p>
+                        <p id="deduction-target-display" class="text-6xl font-black mt-1 tracking-tight text-slate-800">--</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Beurten</p>
+                        <p id="deduction-turns-display" class="text-5xl font-black mt-1 tracking-tight text-slate-800">5</p>
+                    </div>
                 </div>
+
                 <div id="deduction-map-container" class="hidden mt-6 w-full h-80 shadow-inner"><div id="deduction-map" class="w-full h-full"></div></div>
+                
                 <div class="mt-6 space-y-3 relative">
                     <input type="text" id="deduction-city-input" placeholder="Typ een stad (bv. Tokyo)..." class="w-full p-4 shadow-sm" autocomplete="off">
                     <div id="deduction-suggestions" class="absolute z-20 w-full hidden"></div>
@@ -88,7 +116,8 @@
                 <p id="deduction-end-message" class="text-2xl mb-8 text-slate-600 font-light"></p>
                 <div class="mb-8 w-full h-64 bg-white/50 rounded-xl p-2"><canvas id="deduction-chart"></canvas></div>
                 <div class="bg-white/60 rounded-xl p-6 border border-slate-200 mb-8 text-left shadow-sm"><h3 class="font-bold text-slate-800 uppercase tracking-wider text-xs mb-4 border-b pb-2">Jouw Route</h3><ul id="deduction-summary-list" class="space-y-2 text-sm text-slate-700"></ul></div>
-                <button onclick="location.reload()" class="menu-button bg-slate-800 text-white w-full md:w-auto px-8">Opnieuw Spelen 🔄</button>
+                
+                <button id="deduction-restart-btn" class="menu-button bg-slate-800 text-white w-full md:w-auto px-8">Opnieuw Spelen 🔄</button>
             </div>
         </div>
 
@@ -124,7 +153,8 @@
                     <div class="bg-red-50/80 p-4 rounded-xl border border-red-100"><p class="text-xs text-red-600 uppercase font-bold tracking-wider">🔥 Warmste</p><p id="guess-stat-hot" class="font-black text-xl text-red-800 mt-1">-</p></div>
                 </div>
                 <div class="bg-white/60 rounded-xl p-6 border border-slate-200 mb-8 text-left shadow-sm"><h3 class="font-bold text-slate-800 uppercase tracking-wider text-xs mb-4 border-b pb-2">Alle gokken</h3><ul id="guessing-summary-list" class="space-y-2 text-sm text-slate-700"></ul></div>
-                <button onclick="location.reload()" class="menu-button bg-slate-800 text-white px-8">Opnieuw Spelen 🔄</button>
+                
+                <button id="guessing-restart-btn" class="menu-button bg-slate-800 text-white px-8">Opnieuw Spelen 🔄</button>
             </div>
         </div>
 
@@ -186,46 +216,200 @@
             </div>
         </div>
 
-        <div id="millionaire-game" class="hidden pt-4">
-            <div class="text-center mb-6">
-                <h1 class="text-4xl font-black text-slate-800 tracking-tight">De Weer Miljonair 💎</h1>
-                <div class="flex justify-center gap-4 mt-4">
-                    <div class="bg-yellow-100 px-4 py-1 rounded-full text-yellow-800 font-bold border border-yellow-300 shadow-sm">Ronde <span id="mil-round">1</span>/15</div>
-                    <div class="bg-green-100 px-4 py-1 rounded-full text-green-800 font-bold border border-green-300 shadow-sm">Prijs: €<span id="mil-money">0</span></div>
+        <div id="path-game" class="hidden pt-4">
+            <h1 class="text-4xl font-black text-center text-slate-800 mb-4">Weer Pad 🛤️</h1>
+            
+            <div id="path-lobby" class="text-center space-y-8 py-8 hidden">
+                <div class="flex flex-col gap-6 max-w-sm mx-auto">
+                    <button id="path-create-room-btn" class="p-5 bg-pink-500 text-white font-bold rounded-2xl shadow-xl hover:bg-pink-600 transition text-lg">✨ Nieuwe Kamer</button>
+                    <div class="flex gap-2">
+                        <input type="text" id="path-room-code-input" placeholder="CODE" class="flex-1 p-4 border-2 rounded-2xl text-center uppercase font-black tracking-widest text-2xl" autocomplete="off">
+                        <button id="path-join-room-btn" class="p-4 bg-violet-500 text-white font-bold rounded-2xl shadow-xl hover:bg-violet-600 transition">JOIN</button>
+                    </div>
+                </div>
+                <p id="path-lobby-status" class="text-sm text-slate-500 font-medium animate-pulse">Best of 5 - Eerst 3 rondes wint!</p>
+            </div>
+
+            <div id="path-loading" class="text-center py-10 hidden">
+                <div class="animate-spin text-5xl mb-4 text-pink-600">🌍</div>
+                <p id="path-loading-text" class="text-xl text-slate-500 font-bold">Route wordt berekend...</p>
+            </div>
+
+            <div id="path-ui" class="hidden flex flex-col h-full">
+                <div id="path-info-panel" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div class="bg-blue-50 p-3 rounded-xl border border-blue-200 text-center">
+                        <span class="text-xs uppercase font-bold text-blue-400">Start</span>
+                        <div id="start-country-display" class="font-black text-lg text-slate-700">...</div>
+                    </div>
+                    <div class="bg-red-50 p-3 rounded-xl border border-red-200 text-center">
+                        <span class="text-xs uppercase font-bold text-red-400">Eind</span>
+                        <div id="end-country-display" class="font-black text-lg text-slate-700">...</div>
+                    </div>
+                    <div class="bg-slate-800 text-white p-3 rounded-xl shadow-lg text-center transform scale-105 border-2 border-yellow-400">
+                        <span class="text-xs uppercase font-bold text-slate-400">Doel</span>
+                        <div id="path-target-display" class="font-black text-2xl">0°C</div>
+                    </div>
+                    <div id="score-box-current" class="bg-white p-3 rounded-xl border-2 border-slate-200 text-center relative">
+                        <span class="text-xs uppercase font-bold text-slate-400">Huidig</span>
+                        <div id="path-score-display" class="font-black text-2xl text-slate-800">0°C</div>
+                        <div id="path-diff-display" class="text-[10px] font-bold text-slate-400 absolute bottom-1 left-0 w-full">...</div>
+                        <div id="path-spinner" class="hidden absolute top-2 right-2 animate-spin text-blue-500">⌛</div>
+                    </div>
+                </div>
+
+                <div id="path-mp-scoreboard" class="hidden flex justify-between items-center mb-2 px-4 py-2 bg-slate-100 rounded-lg border border-slate-200">
+                    <div class="font-bold text-blue-600">Jij: <span id="path-p1-wins">0</span></div>
+                    <div class="text-xs font-bold text-slate-400 uppercase tracking-widest">Best of 5</div>
+                    <div class="font-bold text-red-600">Tegenstander: <span id="path-p2-wins">0</span></div>
+                </div>
+
+                <div class="flex-grow relative rounded-2xl overflow-hidden border-4 border-white shadow-xl h-[50vh] md:h-[60vh]">
+                    <div id="path-map" class="w-full h-full z-10 bg-blue-100"></div>
+                    <div class="absolute bottom-4 left-4 z-[500] bg-white/90 p-3 rounded-xl text-xs font-bold shadow-lg backdrop-blur text-slate-600 max-w-[200px]">
+                        💡 Klik op een buurland om te reizen. Stappen op = Game Over.
+                    </div>
                 </div>
             </div>
-            <div id="mil-game-area" class="space-y-6 max-w-2xl mx-auto">
-                <div class="p-8 bg-slate-800 rounded-2xl border-4 border-slate-600 shadow-2xl relative overflow-hidden">
-                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent opacity-50"></div>
-                    <div class="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent opacity-50"></div>
-                    <h2 class="text-2xl md:text-3xl font-bold text-white text-center drop-shadow-md">
-                        Welke stad is het warmst?
+
+            <div id="path-end-screen" class="hidden text-center p-8 bg-white/90 backdrop-blur rounded-3xl border-4 border-slate-200 mt-4">
+                <h2 id="path-end-title" class="text-5xl font-black mb-4"></h2>
+                <p id="path-end-message" class="text-xl text-slate-600 mb-6"></p>
+                <div class="bg-slate-50 p-4 rounded-xl text-sm text-slate-500 mb-6" id="path-summary-text"></div>
+                
+                <div id="path-mp-controls" class="hidden space-y-4">
+                    <p id="path-mp-status" class="font-bold text-blue-500 animate-pulse">Wachten op tegenstander...</p>
+                    <button id="path-next-round-btn" class="hidden w-full p-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg">Volgende Ronde ➡️</button>
+                </div>
+
+                <button id="path-restart-btn" class="menu-button bg-slate-800 text-white px-10">Opnieuw Spelen 🔄</button>
+            </div>
+        </div>
+
+        <div id="higherlower-game" class="hidden pt-4 h-full flex flex-col">
+            <div class="text-center mb-4">
+                <h1 class="text-4xl font-black text-slate-800 mb-2">Hoger of Lager? 🌡️</h1>
+                <div id="hl-score-display" class="inline-block px-4 py-1 bg-slate-800 text-white rounded-full font-bold text-sm">Streak: 0</div>
+            </div>
+
+            <div id="hl-game-area" class="flex-grow flex flex-col md:flex-row items-center justify-center gap-4 md:gap-12 relative">
+                <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white rounded-full p-2 shadow-xl border-4 border-slate-100 font-black text-slate-300 text-xl">VS</div>
+
+                <div class="w-full md:w-1/3 bg-white/80 p-8 rounded-3xl shadow-lg border border-slate-200 text-center flex flex-col items-center">
+                    <div id="hl-city-1-name" class="text-2xl font-bold text-slate-800 mb-1">...</div>
+                    <div id="hl-city-1-country" class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-6">...</div>
+                    <div id="hl-temp-1" class="text-6xl font-black text-slate-800 my-4">--°C</div>
+                    <div class="mt-4 text-xs font-bold text-slate-400">Huidige Temp</div>
+                </div>
+
+                <div class="w-full md:w-1/3 bg-slate-800 p-8 rounded-3xl shadow-xl border-4 border-slate-700 text-center flex flex-col items-center relative overflow-hidden">
+                    <div id="hl-loading" class="hidden absolute inset-0 bg-slate-800/90 z-20 flex items-center justify-center">
+                        <div class="animate-spin text-4xl">⏳</div>
+                    </div>
+                    <div id="hl-city-2-name" class="text-2xl font-bold text-white mb-1">...</div>
+                    <div id="hl-city-2-country" class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-6">...</div>
+                    <div id="hl-temp-2" class="text-6xl font-black text-slate-300 my-4">???</div>
+                    
+                    <div id="hl-buttons" class="flex flex-col w-full gap-3 mt-4">
+                        <button id="hl-btn-higher" class="p-4 bg-red-500 hover:bg-red-600 text-white font-black rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center justify-center gap-2"><span>⬆️</span> HOGER</button>
+                        <button id="hl-btn-lower" class="p-4 bg-blue-500 hover:bg-blue-600 text-white font-black rounded-xl shadow-lg transition-transform hover:-translate-y-1 flex items-center justify-center gap-2"><span>⬇️</span> LAGER</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="hl-game-over" class="hidden text-center py-10">
+                <h2 id="hl-end-title" class="text-4xl font-black text-slate-800 mb-2"></h2>
+                <p class="text-xl text-slate-500 mb-6">Je streak is gebroken!</p>
+                <div class="flex justify-center gap-8 mb-8">
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 w-32">
+                        <div class="text-xs text-slate-400 font-bold uppercase">Score</div>
+                        <div id="hl-end-score" class="text-4xl font-black text-slate-800">0</div>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-2xl shadow-sm border border-yellow-200 w-32">
+                        <div class="text-xs text-yellow-600 font-bold uppercase">Beste</div>
+                        <div id="hl-high-score" class="text-4xl font-black text-yellow-600">0</div>
+                    </div>
+                </div>
+                <button id="hl-restart-btn" class="menu-button bg-slate-800 text-white px-10">Opnieuw Proberen 🔄</button>
+            </div>
+        </div>
+
+        <div id="millionaire-game" class="hidden pt-4">
+            
+            <div class="flex justify-between items-center mb-8 px-4">
+                <div class="text-left">
+                    <div class="text-xs text-blue-300 uppercase tracking-widest">Vraag</div>
+                    <div class="text-2xl font-black text-white"><span id="mil-round">1</span>/15</div>
+                </div>
+                
+                <div class="text-center">
+                    <h1 class="text-3xl md:text-5xl font-black tracking-tighter" 
+                        style="background: linear-gradient(to bottom, #facc15, #ca8a04); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 2px 0 #000);">
+                        MILLIONAIRE
+                    </h1>
+                </div>
+
+                <div class="text-right">
+                    <div class="text-xs text-green-300 uppercase tracking-widest">Prijs</div>
+                    <div class="text-2xl font-black text-white">€<span id="mil-money">0</span></div>
+                </div>
+            </div>
+            
+            <div id="mil-game-area" class="max-w-4xl mx-auto">
+                
+                <div class="mil-box mil-question-box">
+                    <h2 id="mil-question-text" class="text-xl md:text-2xl leading-relaxed">
+                        Vraag wordt geladen...
                     </h2>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button id="opt-0" class="mil-option"><span class="opt-letter">A:</span> <span class="opt-text">...</span></button>
-                    <button id="opt-1" class="mil-option"><span class="opt-letter">B:</span> <span class="opt-text">...</span></button>
-                    <button id="opt-2" class="mil-option"><span class="opt-letter">C:</span> <span class="opt-text">...</span></button>
-                    <button id="opt-3" class="mil-option"><span class="opt-letter">D:</span> <span class="opt-text">...</span></button>
+
+                <div class="mil-options-grid mt-8">
+                    <button id="opt-0" class="mil-box mil-option">
+                        <span class="opt-letter">A:</span> <span class="opt-text">...</span>
+                    </button>
+                    <button id="opt-1" class="mil-box mil-option">
+                        <span class="opt-letter">B:</span> <span class="opt-text">...</span>
+                    </button>
+                    <button id="opt-2" class="mil-box mil-option">
+                        <span class="opt-letter">C:</span> <span class="opt-text">...</span>
+                    </button>
+                    <button id="opt-3" class="mil-box mil-option">
+                        <span class="opt-letter">D:</span> <span class="opt-text">...</span>
+                    </button>
                 </div>
-                <div class="flex justify-center gap-6 mt-8">
+
+                <div class="flex justify-center items-center gap-4 mt-12">
                     <button id="lifeline-5050" class="lifeline-btn" title="50:50">✂️</button>
-                    <button id="lifeline-audience" class="lifeline-btn" title="Vraag Publiek">👥</button>
-                    <button id="lifeline-call" class="lifeline-btn" title="Bel Weerman">📞</button>
+                    <button id="lifeline-doubledip" class="lifeline-btn" title="Tweede Kans">🔄</button>
+                    <button id="lifeline-stats" class="lifeline-btn" title="Weekgemiddelde">📊</button>
+                    
+                    <div class="w-px h-8 bg-slate-600 mx-4"></div> 
+
+                    <button id="mil-stop-btn" class="px-6 py-2 bg-red-800 hover:bg-red-700 text-white font-bold rounded-full border-2 border-red-500 shadow-lg transition">
+                        STOP
+                    </button>
                 </div>
             </div>
-            <div id="mil-loading" class="hidden text-center py-10">
-                <div class="animate-spin text-4xl mb-4 text-blue-600">⏳</div>
-                <p class="text-slate-500 font-bold">Volgende vraag laden...</p>
+
+            <div id="mil-loading" class="hidden text-center py-20">
+                <div class="animate-spin text-5xl mb-4 text-yellow-500">💠</div>
+                <p class="text-blue-300 font-bold uppercase tracking-widest">Vraag ophalen...</p>
             </div>
-            <div id="mil-end-screen" class="hidden text-center p-8 bg-white/90 backdrop-blur rounded-3xl border-4 border-slate-200">
-                <h2 id="mil-end-title" class="text-5xl font-black mb-4 text-slate-800"></h2>
-                <p class="text-xl text-slate-600 mb-6">Je gaat naar huis met:</p>
-                <div class="text-6xl font-black text-green-600 mb-8 drop-shadow-sm">€<span id="mil-end-money">0</span></div>
-                <button onclick="location.reload()" class="menu-button bg-slate-800 text-white px-10">Opnieuw Spelen</button>
+
+            <div id="mil-end-screen" class="hidden text-center py-10">
+                <h2 id="mil-end-title" class="text-5xl font-black mb-4 text-white drop-shadow-lg"></h2>
+                <p class="text-xl text-blue-200 mb-8" id="mil-end-msg">Je wint:</p>
+                
+                <div class="mil-box" style="justify-content: center; padding: 20px; font-size: 3rem; color: #4ade80; border-color: #22c55e; max-width: 500px; margin: 0 auto 30px auto;">
+                    €<span id="mil-end-money">0</span>
+                </div>
+
+                <button id="mil-restart-btn" class="px-8 py-4 bg-blue-700 hover:bg-blue-600 text-white font-bold rounded-full border-2 border-blue-400 shadow-xl text-xl transition">
+                    Opnieuw Spelen
+                </button>
             </div>
         </div>
     </div>
-    <script type="module" src="main.js?v=4"></script>
+    
+    <script type="module" src="main.js?v=12"></script>
 </body>
 </html>

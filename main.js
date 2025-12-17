@@ -2,15 +2,15 @@ import { testApiConnection } from './utils.js';
 import * as deductionGame from './games/game-deduction.js';
 import * as guessingGame from './games/game-guessing.js';
 import * as duelGame from './games/game-duel.js';
-import * as duelLandGame from './games/game-duel-land.js'; // NIEUWE IMPORT
-import * as millionaireGame from './games/game-millionaire.js';
+import * as duelLandGame from './games/game-duel-land.js';
+import * as pathGame from './games/game-path.js';
+import * as higherLowerGame from './games/quiz/game-higherlower.js';
+import * as millionaireGame from './games/quiz/game-millionaire.js';
 
 function initBackgroundEffects() {
     const icons = ['❄️', '☀️', '☁️', '⚡', '🌈', '🌧️', '🌪️'];
     const container = document.body;
-    const particleCount = 15;
-
-    for (let i = 0; i < particleCount; i++) {
+    for (let i = 0; i < 15; i++) {
         const span = document.createElement('span');
         span.textContent = icons[Math.floor(Math.random() * icons.length)];
         span.className = 'weather-particle';
@@ -27,46 +27,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     initBackgroundEffects();
     await testApiConnection();
 
-    // DEDUCTION
-    const btnDedText = document.getElementById('btn-deduction-text');
-    const btnDedMap = document.getElementById('btn-deduction-map');
-    if(btnDedText) btnDedText.addEventListener('click', () => startGame('deduction', 'text'));
-    if(btnDedMap) btnDedMap.addEventListener('click', () => startGame('deduction', 'map'));
+    // Event Listeners (Menu)
+    const setupListener = (id, func) => {
+        const el = document.getElementById(id);
+        if (el) el.onclick = func;
+    };
 
-    // GUESSING
-    const btnGuessText = document.getElementById('btn-guessing-text');
-    const btnGuessMap = document.getElementById('btn-guessing-map');
-    if(btnGuessText) btnGuessText.addEventListener('click', () => startGame('guessing', 'text'));
-    if(btnGuessMap) btnGuessMap.addEventListener('click', () => startGame('guessing', 'map'));
+    setupListener('btn-deduction-text', () => startGame('deduction', 'text'));
+    setupListener('btn-deduction-map', () => startGame('deduction', 'map'));
+    setupListener('btn-guessing-text', () => startGame('guessing', 'text'));
+    setupListener('btn-guessing-map', () => startGame('guessing', 'map'));
+    setupListener('btn-duel-text', () => startGame('duel', 'text'));
+    setupListener('btn-duel-land', () => startGame('duel-land', 'text'));
+    setupListener('btn-path-solo', () => startGame('path', 'solo'));
+    setupListener('btn-path-online', () => startGame('path', 'online'));
+    setupListener('btn-higherlower', () => startGame('higherlower'));
+    setupListener('btn-millionaire', () => startGame('millionaire'));
 
-    // DUEL (Steden & Landen)
-    const btnDuelText = document.getElementById('btn-duel-text');
-    const btnDuelLand = document.getElementById('btn-duel-land'); // De nieuwe knop
-    
-    if(btnDuelText) btnDuelText.addEventListener('click', () => startGame('duel', 'text'));
-    if(btnDuelLand) btnDuelLand.addEventListener('click', () => startGame('duel-land', 'text'));
-
-    // MILJONAIR
-    const btnMil = document.getElementById('btn-millionaire');
-    if(btnMil) btnMil.addEventListener('click', () => startGame('millionaire', 'text'));
-
-    // Back Button
-    const backBtn = document.getElementById('back-to-menu');
-    if(backBtn) backBtn.addEventListener('click', () => location.reload());
+    // Back Button (Reload is veiligste optie om alles te resetten)
+    setupListener('back-to-menu', () => location.reload());
 });
 
 function startGame(game, mode) {
-    console.log(`🎮 Start spel: ${game}`);
-    document.getElementById('main-menu').classList.add('hidden');
-    document.getElementById('game-container').classList.remove('hidden');
-
-    document.getElementById('deduction-game').classList.add('hidden');
-    document.getElementById('guessing-game').classList.add('hidden');
-    document.getElementById('duel-game').classList.add('hidden');
+    console.log(`🎮 Start spel: ${game} (${mode})`);
     
-    const milGame = document.getElementById('millionaire-game');
-    if(milGame) milGame.classList.add('hidden');
+    // Verberg Menu
+    document.getElementById('main-menu').classList.add('hidden');
+    
+    // Toon Container
+    const container = document.getElementById('game-container');
+    container.classList.remove('hidden');
+    
+    // Reset Millionaire Mode Style
+    container.classList.remove('millionaire-mode'); 
 
+    // Verberg alle games
+    const games = ['deduction-game', 'guessing-game', 'duel-game', 'path-game', 'higherlower-game', 'millionaire-game'];
+    games.forEach(id => document.getElementById(id).classList.add('hidden'));
+
+    // Start specifieke game
     if (game === 'deduction') {
         deductionGame.init(mode);
         document.getElementById('deduction-game').classList.remove('hidden');
@@ -74,15 +73,20 @@ function startGame(game, mode) {
         guessingGame.init(mode);
         document.getElementById('guessing-game').classList.remove('hidden');
     } else if (game === 'duel') {
-        duelGame.init(); // Steden
+        duelGame.init();
         document.getElementById('duel-game').classList.remove('hidden');
     } else if (game === 'duel-land') {
-        duelLandGame.init(); // Landen
+        duelLandGame.init();
         document.getElementById('duel-game').classList.remove('hidden');
+    } else if (game === 'path') {
+        pathGame.init(mode);
+        document.getElementById('path-game').classList.remove('hidden');
+    } else if (game === 'higherlower') {
+        higherLowerGame.init();
+        document.getElementById('higherlower-game').classList.remove('hidden');
     } else if (game === 'millionaire') {
-        if(milGame) {
-            millionaireGame.init();
-            milGame.classList.remove('hidden');
-        }
+        container.classList.add('millionaire-mode'); // ACTIVATE DARK THEME
+        millionaireGame.init();
+        document.getElementById('millionaire-game').classList.remove('hidden');
     }
 }
