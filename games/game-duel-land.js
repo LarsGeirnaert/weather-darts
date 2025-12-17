@@ -1,5 +1,5 @@
 import { db, ref, set, onValue, update } from '../firebase.js';
-import { fetchTemperature } from '../utils.js'; // getFlagEmoji doen we hier lokaal anders voor de dropdown
+import { fetchTemperature } from '../utils.js';
 import { API_KEY, GEO_API_URL, DEBOUNCE_DELAY } from '../config.js';
 
 // --- STATE ---
@@ -19,7 +19,7 @@ function safeSetText(id, htmlContent) {
     if (el) el.innerHTML = htmlContent;
 }
 
-// Interne helper om vlaggen te genereren (zelfde stijl als steden game)
+// Interne helper om vlaggen te genereren
 function getFlagHtml(countryCode) {
     if (!countryCode) return '';
     return `<span class="fi fi-${countryCode.toLowerCase()} shadow-sm rounded-[2px]" style="font-size: 1.2em; margin-left: 6px;"></span>`;
@@ -38,6 +38,11 @@ function generateRoomId() {
 
 export function init() {
     console.log("🌍 Landen Duel Init");
+    
+    document.getElementById('duel-lobby').classList.remove('hidden');
+    document.getElementById('duel-board').classList.add('hidden');
+    document.getElementById('duel-result').classList.add('hidden');
+    document.getElementById('duel-summary').classList.add('hidden');
     
     // 1. Knoppen Resetten
     const oldBtn = document.getElementById('duel-submit-btn');
@@ -70,7 +75,10 @@ export function init() {
     
     // State Reset
     myUsedCountries.clear();
-    updateUsedCountriesUI();
+    // Leeg de visuele lijst ook direct
+    const listContainer = document.getElementById('used-cities-list');
+    if(listContainer) listContainer.innerHTML = '';
+
     lastKnownRound = 0;
     selectedCountryData = null;
 
@@ -89,7 +97,7 @@ function setupButton(id, handler) {
     }
 }
 
-// --- INPUT & SUGGESTIES (AANGEPAST: MET VLAGGEN) ---
+// --- INPUT & SUGGESTIES ---
 
 function setupCountryInput(inputId, listId, btnId, onSelect) {
     const input = document.getElementById(inputId);
@@ -121,7 +129,7 @@ function setupCountryInput(inputId, listId, btnId, onSelect) {
                 if (res.ok) {
                     data = await res.json();
                 } else {
-                    // 2. Fallback: Zoek op vertaling (voor NL namen)
+                    // 2. Fallback: Zoek op vertaling
                     res = await fetch(`https://restcountries.com/v3.1/translation/${query}`);
                     if (res.ok) {
                         data = await res.json();
@@ -135,7 +143,7 @@ function setupCountryInput(inputId, listId, btnId, onSelect) {
                     name: c.name.common,
                     dutchName: c.translations?.nld?.common || c.name.common,
                     capital: c.capital ? c.capital[0] : null,
-                    code: c.cca2 // Belangrijk: De landcode (bv 'BE') voor de vlag
+                    code: c.cca2
                 })).filter(c => c.capital);
 
                 renderCountrySuggestions(suggestions, list, newInput, btn, onSelect);
@@ -156,10 +164,8 @@ function renderCountrySuggestions(countries, list, input, btn, onSelect) {
 
     countries.forEach(country => {
         const div = document.createElement('div');
-        // AANGEPAST: Mooie styling met hover effect
         div.className = 'p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 flex justify-between items-center transition-colors';
         
-        // AANGEPAST: Hier voegen we de VLAG toe mbv de CSS library (niet de emoji)
         const flagHtml = `<span class="fi fi-${country.code.toLowerCase()} shadow-sm rounded-[2px] text-xl"></span>`;
         
         div.innerHTML = `
@@ -248,16 +254,33 @@ function waitForGameStart() {
             if(p2Bar) p2Bar.style.width = `${Math.max(0, Math.min(100, oppScore))}%`;
         }
 
+        // --- HIER IS DE AANPASSING VOOR DE LIJST (Temp + Naam) ---
         if (data.history) {
-            Object.values(data.history).forEach(item => {
-                const myMove = playerRole === 'host' ? item.host : item.guest;
-                if(myMove && myMove.countryCode) {
-                    if(!myUsedCountries.has(myMove.countryCode)) {
+            const container = document.getElementById('used-cities-list');
+            if (container) {
+                container.innerHTML = ''; 
+                myUsedCountries.clear();
+                
+                Object.values(data.history).forEach(item => {
+                    const myMove = playerRole === 'host' ? item.host : item.guest;
+                    if (myMove && myMove.guess) {
+                        // Badge met Naam + Vlag + Temp
+                        const badge = document.createElement('div');
+                        badge.className = 'flex items-center justify-between w-full bg-white/50 p-2 rounded-lg border-l-4 border-orange-400 shadow-sm mb-1';
+                        badge.innerHTML = `
+                            <div class="flex items-center gap-2">
+                                ${getFlagHtml(myMove.countryCode)}
+                                <span class="text-sm font-medium text-slate-700">${myMove.guess}</span>
+                            </div>
+                            <span class="text-sm font-black text-slate-800">${myMove.temp}°C</span>
+                        `;
+                        container.appendChild(badge);
+                        
+                        // Voeg toe aan validatie set
                         myUsedCountries.add(myMove.countryCode);
                     }
-                }
-            });
-            updateUsedCountriesUI();
+                });
+            }
         }
 
         if (data.roundState === 'results') {
@@ -341,9 +364,7 @@ async function submitLandGuess() {
         const temp = await fetchTemperature(location, null);
 
         if (temp !== null) {
-            myUsedCountries.add(selectedCountryData.code);
-            updateUsedCountriesUI();
-            
+            // Update UI gebeurt via de listener
             update(ref(db, `rooms/${currentRoomId}/${playerRole}`), {
                 guess: selectedCountryData.dutchName,
                 capital: selectedCountryData.capital,
@@ -447,18 +468,7 @@ function showDuelResults(data) {
 }
 
 function updateUsedCountriesUI() {
-    const list = document.getElementById('used-cities-list');
-    if(!list) return;
-    list.innerHTML = '';
-    myUsedCountries.forEach(code => {
-        const badge = document.createElement('div');
-        badge.className = 'px-3 py-1 bg-slate-200 rounded-full border border-slate-300 flex items-center gap-2 shadow-sm';
-        badge.innerHTML = `
-            <span class="text-xs font-bold text-slate-500 line-through decoration-red-500 decoration-2">${code}</span>
-            ${getFlagHtml(code)}
-        `;
-        list.appendChild(badge);
-    });
+    // Deze functie wordt nu afgehandeld in waitForGameStart via data.history
 }
 
 function setReadyForNextRound() {
@@ -480,7 +490,7 @@ function startNextRound() {
     }, { onlyOnce: true });
 }
 
-// --- GAME OVER SUMMARY (LAYOUT FIX) ---
+// --- GAME OVER SUMMARY (MET GRAFIEK) ---
 
 function showGameSummary(data) {
     document.getElementById('duel-play-area').classList.add('hidden');
@@ -508,18 +518,15 @@ function showGameSummary(data) {
         const hostScores = [100]; const guestScores = [100]; const roundLabels = ['Start'];
         let currentHostScore = 100; let currentGuestScore = 100;
 
-        // AANGEPAST: Fix voor de grafiek layout
+        // Styling voor compacte layout
         const chartCanvas = document.getElementById('duel-chart');
         if(chartCanvas) {
-             // Zorg dat de parent een vaste hoogte heeft
-             chartCanvas.parentElement.className = "mb-6 w-full h-48 bg-slate-50 rounded-xl p-2 border border-slate-100 relative";
+             chartCanvas.parentElement.className = "mb-2 w-full h-40 bg-slate-50 rounded-xl p-2 border border-slate-100 relative";
         }
         
-        // AANGEPAST: Fix voor de lijst layout (scrollbaar)
         const listParent = document.querySelector('#duel-summary .max-h-60');
         if(listParent) {
-            // Maak iets kleiner en zorg voor scroll
-            listParent.className = "bg-slate-50 rounded-2xl p-4 border border-slate-200 mb-4 text-left h-64 overflow-y-auto shadow-inner";
+            listParent.className = "bg-slate-50 rounded-2xl p-4 border border-slate-200 mb-4 text-left h-48 overflow-y-auto shadow-inner";
         }
 
         sortedHistory.forEach(item => {
@@ -529,6 +536,7 @@ function showGameSummary(data) {
             const guestDiff = item.guest.diff;
             const round = item.round;
 
+            // HP Berekening voor grafiek
             if (hostDiff < guestDiff) currentGuestScore -= (guestDiff - hostDiff) * round;
             else if (guestDiff < hostDiff) currentHostScore -= (hostDiff - guestDiff) * round;
 
@@ -538,7 +546,7 @@ function showGameSummary(data) {
 
             if(list) {
                 const li = document.createElement('li');
-                li.className = "bg-white p-3 rounded-xl border border-gray-200 shadow-sm mb-2";
+                li.className = "bg-white p-2 rounded-xl border border-gray-200 shadow-sm mb-2";
                 li.innerHTML = `
                     <div class="flex justify-between items-center font-bold text-slate-700 border-b border-slate-100 pb-2 mb-2">
                         <span class="bg-slate-200 text-slate-600 text-[10px] px-2 py-1 rounded-full uppercase tracking-wider">Ronde ${item.round}</span>
@@ -566,50 +574,33 @@ function showGameSummary(data) {
             }
         });
 
-        // Chart renderen
-        const myScoreData = playerRole === 'host' ? hostScores : guestScores;
-        const oppScoreData = playerRole === 'host' ? guestScores : hostScores;
-        
-        if(myChart) myChart.destroy();
-        
-        if(chartCanvas) {
-            myChart = new Chart(chartCanvas, {
-                type: 'line',
-                data: {
-                    labels: roundLabels,
-                    datasets: [
-                        { 
-                            label: 'Jij', 
-                            data: myScoreData, 
-                            borderColor: '#22c55e', 
-                            backgroundColor: 'rgba(34, 197, 94, 0.1)', 
-                            borderWidth: 2,
-                            tension: 0.3, 
-                            fill: true,
-                            pointRadius: 2
-                        },
-                        { 
-                            label: 'Tegenstander', 
-                            data: oppScoreData, 
-                            borderColor: '#ef4444', 
-                            backgroundColor: 'rgba(239, 68, 68, 0.1)', 
-                            borderWidth: 2,
-                            tension: 0.3, 
-                            fill: true,
-                            pointRadius: 2
-                        }
-                    ]
-                },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    plugins: { legend: { display: false } },
-                    scales: { 
-                        y: { beginAtZero: true, suggestedMax: 100, grid: { display: false } },
-                        x: { grid: { display: false } }
-                    } 
-                }
-            });
-        }
+        // Grafiek tekenen met timeout
+        setTimeout(() => {
+            if(myChart) myChart.destroy();
+            if(chartCanvas) {
+                const myScoreData = playerRole === 'host' ? hostScores : guestScores;
+                const oppScoreData = playerRole === 'host' ? guestScores : hostScores;
+
+                myChart = new Chart(chartCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: roundLabels,
+                        datasets: [
+                            { label: 'Jij', data: myScoreData, borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', borderWidth: 3, tension: 0.3, fill: true, pointRadius: 3 },
+                            { label: 'Tegenstander', data: oppScoreData, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 3, tension: 0.3, fill: true, pointRadius: 3 }
+                        ]
+                    },
+                    options: { 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { legend: { display: false } },
+                        scales: { 
+                            y: { beginAtZero: true, suggestedMax: 100, grid: { display: false } },
+                            x: { grid: { display: false } }
+                        } 
+                    }
+                });
+            }
+        }, 150);
     }, { onlyOnce: true });
 }

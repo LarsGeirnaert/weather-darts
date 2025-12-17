@@ -2,6 +2,7 @@ import { db, ref, set, onValue, update } from '../firebase.js';
 import { fetchTemperature } from '../utils.js';
 import { DEBOUNCE_DELAY } from '../config.js';
 
+// --- STATE ---
 let currentRoomId = null;
 let playerRole = null; 
 let duelCityData = null;
@@ -10,6 +11,8 @@ let isProcessingTurn = false;
 let myChart = null; 
 let lastKnownRound = 0;
 let debounceTimer = null;
+
+// --- HELPERS ---
 
 function safeSetText(id, htmlContent) {
     const el = document.getElementById(id);
@@ -34,6 +37,8 @@ function generateRoomId() {
     }
     return result;
 }
+
+// --- INIT ---
 
 export function init() {
     console.log("🏙️ Steden Duel Init");
@@ -69,8 +74,12 @@ export function init() {
     }
     if(suggestions) suggestions.classList.add('hidden');
     
+    // Reset state
     myUsedCountries.clear();
-    updateUsedCountriesUI();
+    // Leeg de lijst visueel ook direct bij start
+    const listContainer = document.getElementById('used-cities-list');
+    if(listContainer) listContainer.innerHTML = '';
+
     lastKnownRound = 0;
     duelCityData = null;
 
@@ -87,6 +96,8 @@ function setupButton(id, handler) {
         newEl.onclick = handler;
     }
 }
+
+// --- INPUT & SUGGESTIES (MET FILTER) ---
 
 function setupCityInput(inputId, listId, btnId, onSelect) {
     const input = document.getElementById(inputId);
@@ -119,12 +130,12 @@ function setupCityInput(inputId, listId, btnId, onSelect) {
                     return;
                 }
 
-                // --- HIER IS DE FILTRATIE TOEGEVOEGD ---
+                // --- FILTER: GEEN LANDEN ---
                 const suggestions = data.results
                     .filter(city => {
-                        // We willen alleen 'Populated Places' (P...), geen Landen (PCL...) of Regio's (A...)
-                        // Als feature_code PCLI is, is het een land -> verberg het
-                        if (!city.feature_code) return true; // Veiligheid
+                        // We willen alleen 'Populated Places' (P...), geen Landen (PCL...)
+                        // Als feature_code PCLI, PCLD, etc is, is het een land -> verberg het
+                        if (!city.feature_code) return true; 
                         return city.feature_code.startsWith('P') && !city.feature_code.startsWith('PCL');
                     })
                     .slice(0, 5) // Pak de top 5 NA filtratie
@@ -182,6 +193,8 @@ function renderCitySuggestions(cities, list, input, btn, onSelect) {
     });
     list.classList.remove('hidden');
 }
+
+// --- FIREBASE LOGICA ---
 
 function createRoom(roomId) {
     currentRoomId = roomId;
@@ -247,16 +260,36 @@ function waitForGameStart() {
             if(p2Bar) p2Bar.style.width = `${Math.max(0, Math.min(100, oppScore))}%`;
         }
 
+        // --- UPDATE "AL GEKOZEN" LIJST MET TEMP & STAD ---
         if (data.history) {
-            Object.values(data.history).forEach(item => {
-                const myMove = playerRole === 'host' ? item.host : item.guest;
-                if(myMove && myMove.country) {
-                    if(!myUsedCountries.has(myMove.country)) {
-                        myUsedCountries.add(myMove.country);
+            const container = document.getElementById('used-cities-list');
+            if (container) {
+                container.innerHTML = ''; 
+                myUsedCountries.clear(); // Reset validatie set
+                
+                Object.values(data.history).forEach(item => {
+                    // Haal mijn zet op uit de geschiedenis
+                    const myMove = playerRole === 'host' ? item.host : item.guest;
+                    
+                    if (myMove && myMove.guess) {
+                        // Voeg toe aan validatie (zodat je het land niet nog eens kiest)
+                        if(myMove.country) myUsedCountries.add(myMove.country);
+
+                        // Maak de badge met Naam + Vlag + Temperatuur
+                        const badge = document.createElement('div');
+                        badge.className = 'flex items-center justify-between w-full bg-white/50 p-2 rounded-lg border-l-4 border-orange-400 shadow-sm mb-1';
+                        
+                        badge.innerHTML = `
+                            <div class="flex items-center gap-2">
+                                ${getFlagHtml(myMove.country)}
+                                <span class="text-sm font-medium text-slate-700">${myMove.guess}</span>
+                            </div>
+                            <span class="text-sm font-black text-slate-800">${myMove.temp}°C</span>
+                        `;
+                        container.appendChild(badge);
                     }
-                }
-            });
-            updateUsedCountriesUI();
+                });
+            }
         }
 
         if (data.roundState === 'results') {
@@ -331,8 +364,7 @@ async function submitDuelGuess() {
     const temp = await fetchTemperature(duelCityData, null);
 
     if (temp !== null) {
-        myUsedCountries.add(duelCityData.country);
-        updateUsedCountriesUI();
+        // We updaten de UI hier niet handmatig, dat doet de onValue listener via data.history
         update(ref(db, `rooms/${currentRoomId}/${playerRole}`), {
             guess: duelCityData.name,
             country: duelCityData.country,
@@ -444,20 +476,11 @@ function startNextRound() {
 }
 
 function updateUsedCountriesUI() {
-    const container = document.getElementById('used-cities-list');
-    if (!container) return;
-    
-    container.innerHTML = '';
-    myUsedCountries.forEach(code => {
-        const badge = document.createElement('div');
-        badge.className = 'px-3 py-1 bg-slate-200 rounded-full border border-slate-300 flex items-center gap-2 shadow-sm';
-        badge.innerHTML = `
-            <span class="text-xs font-bold text-slate-500 line-through decoration-red-500 decoration-2">${code}</span>
-            ${getFlagHtml(code)}
-        `;
-        container.appendChild(badge);
-    });
+    // Deze functie wordt nu volledig afgehandeld door de listener in waitForGameStart
+    // omdat we de temperatuur data uit de history nodig hebben.
 }
+
+// --- GAME OVER SUMMARY (MET GRAFIEK FIX) ---
 
 function showGameSummary(data) {
     document.getElementById('duel-play-area').classList.add('hidden');
@@ -482,6 +505,8 @@ function showGameSummary(data) {
         if(list) list.innerHTML = '';
         
         const sortedHistory = Object.values(history).sort((a, b) => a.round - b.round);
+        
+        // Data voor grafiek
         const hostScores = [100]; const guestScores = [100]; const roundLabels = ['Start'];
         let currentHostScore = 100; let currentGuestScore = 100;
 
@@ -502,6 +527,7 @@ function showGameSummary(data) {
             const guestDiff = item.guest.diff;
             const round = item.round;
 
+            // Bereken score verloop voor grafiek
             if (hostDiff < guestDiff) currentGuestScore -= (guestDiff - hostDiff) * round;
             else if (guestDiff < hostDiff) currentHostScore -= (hostDiff - guestDiff) * round;
 
@@ -539,16 +565,20 @@ function showGameSummary(data) {
             }
         });
 
+        // Grafiek tekenen met timeout om renderen te garanderen
         setTimeout(() => {
             if(myChart) myChart.destroy();
             if(chartCanvas) {
+                const myScoreData = playerRole === 'host' ? hostScores : guestScores;
+                const oppScoreData = playerRole === 'host' ? guestScores : hostScores;
+
                 myChart = new Chart(chartCanvas, {
                     type: 'line',
                     data: {
                         labels: roundLabels,
                         datasets: [
-                            { label: 'Jij', data: hostScores, borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', borderWidth: 3, tension: 0.3, fill: true, pointRadius: 3 },
-                            { label: 'Tegenstander', data: guestScores, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 3, tension: 0.3, fill: true, pointRadius: 3 }
+                            { label: 'Jij', data: myScoreData, borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', borderWidth: 3, tension: 0.3, fill: true, pointRadius: 3 },
+                            { label: 'Tegenstander', data: oppScoreData, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 3, tension: 0.3, fill: true, pointRadius: 3 }
                         ]
                     },
                     options: { 
@@ -562,6 +592,6 @@ function showGameSummary(data) {
                     }
                 });
             }
-        }, 100);
+        }, 150);
     }, { onlyOnce: true });
 }
